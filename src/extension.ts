@@ -1,15 +1,19 @@
 import * as vscode from "vscode";
-import { logger } from "./utils/logger";
+
 import { ExtensionController } from "./core/controller";
-import { ProxyServer } from "./server/ProxyServer";
 import { McpServer } from "./server/McpServer";
-import { getSystemInfo } from "./utils/systemInfo";
-import { readConfiguration } from "./utils/config";
+import { ProxyServer } from "./server/ProxyServer";
 import {
-  getAvailableExtensions,
+  chatModelsCache,
+  getChatModelsQuickPickItems,
+} from "./utils/chatModels";
+import { readConfiguration } from "./utils/config";
+import { logger } from "./utils/logger";
+import {
   addAgentMaestroMcpConfig,
+  getAvailableExtensions,
 } from "./utils/mcpConfig";
-import { getChatModelsQuickPickItems } from "./utils/chatModels";
+import { getSystemInfo } from "./utils/systemInfo";
 
 let controller: ExtensionController;
 let proxy: ProxyServer;
@@ -32,6 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
   // Initialize the extension controller
   controller = new ExtensionController();
 
+  // Initialize chat models cache
+  chatModelsCache.initialize();
+
   try {
     await controller.initialize();
   } catch (error) {
@@ -48,11 +55,12 @@ export async function activate(context: vscode.ExtensionContext) {
     port: envMcpPort ? envMcpPort : isDevMode ? 33334 : config.mcpServerPort,
   });
 
-  proxy = new ProxyServer(
-    controller,
-    envProxyPort ? envProxyPort : isDevMode ? 33333 : config.proxyServerPort,
-    context,
-  );
+  const proxyPort = envProxyPort
+    ? envProxyPort
+    : isDevMode
+      ? 33333
+      : config.proxyServerPort;
+  proxy = new ProxyServer(controller, proxyPort, context);
 
   // Register commands
   const disposables = [
@@ -353,13 +361,12 @@ export async function activate(context: vscode.ExtensionContext) {
             // File doesn't exist, continue with creation
           }
 
-          // Get current proxy server port
-          const config = readConfiguration();
-          const currentPort = isDevMode ? 33333 : config.proxyServerPort;
-
           const modelOptions = await getChatModelsQuickPickItems();
 
-          if (!modelOptions) {
+          if (modelOptions.length === 0) {
+            vscode.window.showErrorMessage(
+              "No available chat model provided by VS Code LM API.",
+            );
             return;
           }
 
@@ -398,7 +405,7 @@ export async function activate(context: vscode.ExtensionContext) {
             ...existingSettings,
             env: {
               ...existingSettings?.env,
-              ANTHROPIC_BASE_URL: `http://localhost:${currentPort}/api/anthropic`,
+              ANTHROPIC_BASE_URL: `http://localhost:${proxyPort}/api/anthropic`,
               ANTHROPIC_AUTH_TOKEN: authToken,
               ANTHROPIC_MODEL: selectedMainModel.modelId,
               ANTHROPIC_SMALL_FAST_MODEL: selectedFastModel.modelId,
