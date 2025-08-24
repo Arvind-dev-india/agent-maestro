@@ -95,6 +95,30 @@ This automatically creates `.claude/settings.json` with Agent Maestro endpoint a
    - **Type Definitions**: [`@roo-code/types`](https://www.npmjs.com/package/@roo-code/types) package
    - **Examples**: Reference implementation in `examples/demo-site` (testing purposes)
 
+## Configuration
+
+### Environment Variables
+
+You can customize Agent Maestro's server ports using environment variables:
+
+| Variable                   | Description       | Default |
+| -------------------------- | ----------------- | ------- |
+| `AGENT_MAESTRO_PROXY_PORT` | Proxy server port | 23333   |
+| `AGENT_MAESTRO_MCP_PORT`   | MCP server port   | 23334   |
+
+**Usage:**
+
+```bash
+# Set custom ports
+export AGENT_MAESTRO_PROXY_PORT=8080
+export AGENT_MAESTRO_MCP_PORT=8081
+
+# Launch VS Code
+code .
+```
+
+> **Note:** Environment variables take precedence over extension settings.
+
 ## API Overview
 
 Agent Maestro v2.0.0 provides multiple API interfaces for different integration needs.
