@@ -1,8 +1,8 @@
 {
   "name": "agent-maestro",
   "displayName": "Agent Maestro",
-  "description": "Headless VS Code AI integrates best-in-class AI agents into any workflow, assisting, automating tasks, and generating solutions seamlessly. Now supporting Claude Code via Anthropic-compatible endpoints.",
-  "version": "2.2.0",
+  "description": "Take AI coding beyond VS Code. Agent Maestro gives you a local server to run coding agents like Roo Code anywhere, plus an Anthropic-compatible API that makes using Claude Code in VS Code effortless — built on GitHub Copilot and LM API compatibility, so setup takes just one command.",
+  "version": "2.2.1",
   "icon": "assets/icons/icon.png",
   "publisher": "Joouis",
   "repository": "https://github.com/Joouis/agent-maestro",
