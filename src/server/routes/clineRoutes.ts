@@ -1,13 +1,14 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { logger } from "../../utils/logger";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+
 import { ExtensionController } from "../../core/controller";
+import { logger } from "../../utils/logger";
 import {
-  ErrorResponseSchema,
-  ImagesDataUriSchema,
-  imagesDataUriErrorMessage,
   ClineMessageRequestSchema,
   ClineTaskResponseSchema,
-} from "../schemas";
+  ImagesDataUriSchema,
+  imagesDataUriErrorMessage,
+} from "../schemas/cline";
+import { ErrorResponseSchema } from "../schemas/common";
 
 // OpenAPI route definition
 const clineTaskRoute = createRoute({
