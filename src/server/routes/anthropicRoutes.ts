@@ -4,7 +4,7 @@ import { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import * as vscode from "vscode";
 
-import { chatModelsCache } from "../../utils/chatModels";
+import { getChatModelClient } from "../../utils/chatModels";
 import { logger } from "../../utils/logger";
 import {
   AnthropicCountTokensResponseSchema,
@@ -25,78 +25,11 @@ interface ContentBlock {
   toolUse?: vscode.LanguageModelToolCallPart;
 }
 
-const convertAnthropicModelToVSCodeModel = (modelId: string): string => {
-  // Remove date suffix (pattern: -YYYYMMDD at the end) for accurate pattern matching
-  const withoutDate = modelId.replace(/-\d{8}$/, "");
-
-  // Handle different model patterns
-  if (withoutDate === "claude-opus-4-1") {
-    return "claude-opus-41";
-  }
-
-  if (withoutDate === "claude-opus-4") {
-    return "claude-opus-4";
-  }
-
-  if (withoutDate === "claude-sonnet-4") {
-    return "claude-sonnet-4";
-  }
-
-  // Handle claude-3-5-haiku -> claude-3.5-sonnet
-  if (withoutDate === "claude-3-5-haiku") {
-    return "claude-3.5-sonnet";
-  }
-
-  // Handle claude-3-haiku -> claude-3.5-sonnet
-  if (withoutDate === "claude-3-haiku") {
-    return "claude-3.5-sonnet";
-  }
-
-  // If no pattern matches or claude-3-7 models, return a default model ID as fallback
-  logger.warn(
-    `No matching model found for ID: ${modelId}. Falling back to default model ID "claude-3.5-sonnet".`,
-  );
-  return "claude-3.5-sonnet";
-};
-
-const ANTHROPIC_MODEL_PREFIX = "claude";
-const getChatModelClient = async (modelId: string) => {
-  // Convert official Anthropic API model ID to VSCode LM API model ID
-  const vsCodeModelId = modelId.startsWith(ANTHROPIC_MODEL_PREFIX)
-    ? convertAnthropicModelToVSCodeModel(modelId)
-    : modelId;
-
-  const models = await chatModelsCache.getChatModels();
-  const client = models
-    // Exclude Claude 3.7 models due to model_not_supported error
-    .filter((m) => !m.id.includes("claude-3.7"))
-    .find((m) => m.id === vsCodeModelId);
-
-  if (!client) {
-    logger.error(
-      `No VS Code LM model available for model ID: ${modelId} (converted to: ${vsCodeModelId})`,
-    );
-    return {
-      error: {
-        error: {
-          message: `Model '${modelId}' not found. Use /api/v1/lm/chatModels to list available models and pass a valid model ID.`,
-          type: "invalid_request_error",
-        },
-        type: "error",
-      },
-    };
-  }
-
-  return { client };
-};
-
 const prepareAnthropicMessages = async ({
   requestBody,
-  c,
   client,
 }: {
   requestBody: Anthropic.Messages.MessageCreateParams;
-  c: Context;
   client: vscode.LanguageModelChat;
 }) => {
   const { system, messages } = requestBody;
@@ -267,7 +200,6 @@ export function registerAnthropicRoutes(app: OpenAPIHono) {
       const { vsCodeLmMessages, inputTokenCount, cancellationToken } =
         await prepareAnthropicMessages({
           requestBody,
-          c,
           client,
         });
 
@@ -392,6 +324,8 @@ export function registerAnthropicRoutes(app: OpenAPIHono) {
                   delta: { type: "text_delta", text: chunk.value },
                 });
               } else if (chunk instanceof vscode.LanguageModelToolCallPart) {
+                // TODO: accumulatedText does not include tool calls yet
+
                 // Every tool call is a new content block
                 if (lastBlock) {
                   await writeSSE({
@@ -501,7 +435,6 @@ export function registerAnthropicRoutes(app: OpenAPIHono) {
 
       const { inputTokenCount } = await prepareAnthropicMessages({
         requestBody,
-        c,
         client,
       });
 
