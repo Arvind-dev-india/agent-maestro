@@ -10,7 +10,10 @@ import {
   chatModelsCache,
   getChatModelsQuickPickItems,
 } from "./utils/chatModels";
-import { showClaudeCodeCompatibilityWarning } from "./utils/claudeCode";
+import {
+  ensureClaudeConfigExists,
+  performClaudeCodeSelfCheck,
+} from "./utils/claude";
 import { readConfiguration } from "./utils/config";
 import { logger } from "./utils/logger";
 import {
@@ -36,7 +39,8 @@ export async function activate(context: vscode.ExtensionContext) {
     logger.show();
   }
 
-  showClaudeCodeCompatibilityWarning();
+  // Perform self-check to add additional settings for seamless Claude Code native extension compatibility
+  performClaudeCodeSelfCheck();
 
   // Initialize the extension controller
   controller = new ExtensionController();
@@ -464,6 +468,9 @@ export async function activate(context: vscode.ExtensionContext) {
             settingsFile,
             Buffer.from(JSON.stringify(newSettings, null, 2)),
           );
+
+          // Ensure Claude config exists with primaryApiKey for seamless compatibility
+          ensureClaudeConfigExists();
 
           vscode.window.showInformationMessage(
             `Claude Code settings ${fileExists ? "updated" : "created"} successfully! The settings point to Agent Maestro proxy server for Anthropic-compatible API.`,
