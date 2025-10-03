@@ -6,6 +6,7 @@ import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
 import { ChatInput } from "./components/ChatInput";
 import { StatusIndicator } from "./components/StatusIndicator";
+import ConnectionStatus from "../../components/ConnectionStatus";
 
 export default function RooPage() {
   const {
@@ -19,9 +20,6 @@ export default function RooPage() {
     selectedMode,
     selectedExtension,
 
-    // Refs
-    textareaRef,
-
     // Actions
     handleNewChat,
     handleSuggestionClick,
@@ -34,6 +32,13 @@ export default function RooPage() {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-indigo-500 to-purple-600">
       <ChatHeader onNewChat={handleNewChat} hasMessages={messages.length > 0} />
+
+      {/* Connection Status - only show when there are no messages to keep UI clean */}
+      {messages.length === 0 && (
+        <div className="px-4 pt-2">
+          <ConnectionStatus />
+        </div>
+      )}
 
       <MessageList
         messages={messages}

@@ -1,15 +1,46 @@
-// Check if isDev query parameter exists to determine port
-const getPort = () => {
+// Get configuration from environment or query parameters
+const getConfig = () => {
   if (typeof window !== "undefined") {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.has("isDev") ? 33333 : 23333;
+    
+    // Check for development mode
+    if (urlParams.has("isDev")) {
+      return {
+        apiBaseUrl: "http://localhost:33333/api/v1",
+        fullApiUrl: "http://localhost:33333/api/v1/roo"
+      };
+    }
+    
+    // Determine if we're accessing via Tailscale (100.x.x.x) or localhost
+    const hostname = window.location.hostname;
+    
+    if (hostname.startsWith('100.')) {
+      // Accessing via Tailscale - need to proxy through the container
+      return {
+        apiBaseUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy`,
+        fullApiUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy/roo`
+      };
+    } else {
+      // Accessing via localhost - direct connection to VS Code
+      return {
+        apiBaseUrl: "http://localhost:23333/api/v1", 
+        fullApiUrl: "http://localhost:23333/api/v1/roo"
+      };
+    }
   }
-  return 23333;
+  
+  // Server-side: use environment variables or defaults
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://host.docker.internal:23333/api/v1";
+  
+  return {
+    apiBaseUrl: apiBaseUrl.replace("/roo", ""),
+    fullApiUrl: apiBaseUrl.includes("/roo") ? apiBaseUrl : `${apiBaseUrl}/roo`
+  };
 };
 
-const PORT = getPort();
-export const API_BASE_URL = `http://localhost:${PORT}/api/v1/roo`;
-const INFO_API_BASE_URL = `http://localhost:${PORT}/api/v1`;
+const config = getConfig();
+export const API_BASE_URL = config.fullApiUrl || `${config.apiBaseUrl}/roo`;
+const INFO_API_BASE_URL = config.apiBaseUrl || config.fullApiUrl?.replace("/roo", "");
 
 export const API_ENDPOINTS = {
   TASK: `${API_BASE_URL}/task`,
@@ -73,7 +104,7 @@ export enum RooCodeEventName {
 export const UI_CONFIG = {
   STATUS_DISPLAY_DURATION: 3000,
   TASK_COMPLETION_DELAY: 3000,
-  TEXTAREA_MAX_HEIGHT: 120,
+  TEXTAREA_MAX_HEIGHT: 200, // Increased for better mobile experience
   MESSAGE_UPDATE_DELAY: 1,
 } as const;
 

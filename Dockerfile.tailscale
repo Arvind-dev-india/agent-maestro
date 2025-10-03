@@ -1,0 +1,31 @@
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY examples/demo-site/package*.json ./
+RUN npm ci
+COPY examples/demo-site/ .
+RUN npm run build
+
+FROM node:18-alpine AS runtime
+# Install Tailscale directly from Alpine packages
+RUN apk add --no-cache ca-certificates iptables ip6tables curl bash tailscale
+
+WORKDIR /app
+
+# Copy the entire built application from builder
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy startup and health check scripts
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY health-check.js /app/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/health-check.js
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node /app/health-check.js || exit 1
+
+EXPOSE 3000
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

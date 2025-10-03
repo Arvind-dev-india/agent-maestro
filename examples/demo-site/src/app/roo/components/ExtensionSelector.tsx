@@ -89,7 +89,7 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-lg opacity-50">
+      <div className="flex items-center gap-2 px-3 py-2.5 sm:py-2 text-sm bg-gray-100 border border-gray-300 rounded-lg opacity-50 flex-1 sm:flex-initial min-w-[120px]">
         <span>Loading...</span>
       </div>
     );
@@ -97,24 +97,24 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
 
   if (error || extensions.length === 0) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm bg-red-50 border border-red-300 rounded-lg text-red-600">
-        <span>{error || "No extensions"}</span>
+      <div className="flex items-center gap-2 px-3 py-2.5 sm:py-2 text-sm bg-red-50 border border-red-300 rounded-lg text-red-600 flex-1 sm:flex-initial min-w-[120px]">
+        <span className="truncate">{error || "No extensions"}</span>
       </div>
     );
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex-1 sm:flex-initial">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-black bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full sm:w-auto flex items-center justify-between gap-2 px-3 py-2.5 sm:py-2 text-sm text-black bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[120px]"
         title={`Extension: ${selectedExtensionData?.name || selectedExtension} (v${selectedExtensionData?.version || "unknown"})`}
       >
-        <span>{selectedExtensionData?.name || selectedExtension}</span>
+        <span className="truncate">{selectedExtensionData?.name || selectedExtension}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -136,8 +136,8 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown menu */}
-          <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+          {/* Dropdown menu - Mobile responsive */}
+          <div className="absolute bottom-full left-0 mb-2 w-[90vw] sm:w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
             {extensions.map((ext) => (
               <button
                 key={ext.id}
@@ -152,8 +152,8 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
                     : "text-gray-700"
                 }`}
               >
-                <div className="font-medium mb-1">{ext.name}</div>
-                <div className="text-xs text-gray-500">
+                <div className="font-medium mb-1 text-base sm:text-sm">{ext.name}</div>
+                <div className="text-sm sm:text-xs text-gray-500">
                   {ext.id} (v{ext.version})
                 </div>
               </button>
