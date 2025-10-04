@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { useChatState } from "./useChatState";
 import { useStatusManager } from "./useStatusManager";
 import { useApiClient } from "./useApiClient";
-import { useMessageHandler } from "./useMessageHandler";
+import { useEnhancedMessageHandler } from "./useEnhancedMessageHandler";
 import {
   createMessage,
   isApprovalAction,
@@ -22,7 +22,7 @@ export const useChat = () => {
     focusTextarea(textareaRef.current);
   }, []);
 
-  const messageHandler = useMessageHandler({
+  const messageHandler = useEnhancedMessageHandler({
     addMessage: chatState.addMessage,
     updateMessage: chatState.updateMessage,
     setCurrentTaskId: chatState.setCurrentTaskId,
@@ -86,9 +86,48 @@ export const useChat = () => {
         return;
       }
 
-      // Handle regular suggestions
-      chatState.setInputValue(suggestion);
-      setTimeout(() => sendMessage(suggestion), 100);
+      // Handle regular suggestions - use existing task if available
+      const userMessage = createMessage(suggestion, true);
+      chatState.addMessage(userMessage);
+      
+      // Use existing task ID if available, otherwise start new task
+      const taskId = chatState.currentTaskId;
+      
+      try {
+        statusManager.showStatusMessage(STATUS_MESSAGES.CONNECTING);
+        chatState.setIsWaitingForResponse(true);
+        messageHandler.resetMessageState();
+
+        const response = await apiClient.sendMessage(
+          suggestion,
+          chatState.selectedMode,
+          chatState.selectedExtension,
+          taskId, // Use existing task ID
+          undefined, // No images for suggestions
+        );
+
+        // Clear images after sending
+        chatState.setCurrentImages([]);
+        
+        chatState.setShowTyping(false);
+        statusManager.showStatusMessage(STATUS_MESSAGES.RECEIVING);
+
+        const sseReader = apiClient.createSSEReader(response);
+
+        while (true) {
+          const { done, events } = await sseReader.read();
+          if (done) break;
+
+          for (const { event, data } of events) {
+            messageHandler.handleEvent(event, data);
+          }
+        }
+        messageHandler.handleMessageStreamEnd();
+      } catch (error: any) {
+        console.error("Error sending suggestion:", error);
+        chatState.setIsWaitingForResponse(false);
+        statusManager.showStatusMessage("Error sending message");
+      }
     },
     [chatState, statusManager, apiClient],
   );
@@ -135,29 +174,171 @@ export const useChat = () => {
           const { done, events } = await sseReader.read();
           if (done) break;
 
+          console.log(`🔄 [Chat] Processing ${events.length} SSE events`);
           for (const { event, data } of events) {
+            console.log(`🎯 [Chat] Dispatching event: ${event}`, data);
             messageHandler.handleEvent(event, data);
           }
         }
+        console.log(`🏁 [Chat] SSE stream completed`);
         messageHandler.handleMessageStreamEnd();
-      } catch (error) {
-        console.error("Chat error:", error);
+      } catch (error: any) {
+        console.error(`💥 [${new Date().toISOString()}] Chat error:`, {
+          error: error.message,
+          category: error.category,
+          userMessage: error.userMessage,
+          operation: error.operation,
+          taskId: error.taskId,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        });
+        
         chatState.setShowTyping(false);
-        statusManager.showStatusMessage(
-          `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
+        chatState.setIsWaitingForResponse(false);
+        
+        // Create user-friendly error message based on error category
+        let displayMessage = "Sorry, I encountered an error. Please try again.";
+        let statusMessage = "Connection error";
+        let suggestions: string[] = [];
+
+        switch (error.category) {
+          case 'connection_failed':
+          case 'network_error':
+            displayMessage = "Connection failed. Please check if the VS Code extension is running and accessible.";
+            statusMessage = "Connection failed - Check VS Code extension";
+            suggestions = [
+              "Check VS Code Extension", 
+              "Retry Request",
+              "Check Network Connection"
+            ];
+            break;
+          case 'server_error':
+            displayMessage = "Server error occurred. This might be a temporary issue with the extension.";
+            statusMessage = "Server error - Try again";
+            suggestions = [
+              "Retry Request",
+              "Check Extension Status", 
+              "Restart VS Code"
+            ];
+            break;
+          case 'rate_limited':
+            displayMessage = "Too many requests. Please wait a moment before trying again.";
+            statusMessage = "Rate limited - Wait before retrying";
+            suggestions = [
+              "Wait and Retry",
+              "Reduce Request Frequency"
+            ];
+            break;
+          case 'sse_error':
+          case 'sse_read_error':
+            displayMessage = "Connection to the AI agent was lost. This can happen if the agent takes a long time to respond or if there's a network issue.";
+            statusMessage = "Connection lost - Retry available";
+            suggestions = [
+              "Retry Last Message",
+              "Start New Chat", 
+              "Check Network Connection"
+            ];
+            break;
+          case 'parse_error':
+            displayMessage = "Received invalid data from the server. There may be a compatibility issue.";
+            statusMessage = "Data parsing error";
+            suggestions = [
+              "Refresh Page",
+              "Check Extension Version",
+              "Report Issue"
+            ];
+            break;
+          default:
+            // Use the error's user message if available
+            displayMessage = error.userMessage || error.responseData?.message || displayMessage;
+            statusMessage = `Error: ${error.message || "Unknown error"}`;
+            suggestions = [
+              "Retry Request",
+              "Check Input",
+              "Refresh Page"
+            ];
+        }
+
+        // Add technical details for development
+        if (process.env.NODE_ENV === 'development') {
+          displayMessage += `\n\n🔧 Development Details:\n- Category: ${error.category || 'unknown'}\n- Operation: ${error.operation || 'unknown'}\n- Status: ${error.status || 'unknown'}\n- Timestamp: ${new Date().toISOString()}`;
+        }
+
+        statusManager.showStatusMessage(statusMessage);
 
         const errorMessage = createMessage(
-          "Sorry, I encountered a connection error. Please try again.",
+          displayMessage,
           false,
+          { suggestions }
         );
 
         chatState.addMessage(errorMessage);
-        chatState.setIsWaitingForResponse(false);
+        
+        // Track error in tool failures for analytics
+        if (error.category && error.operation) {
+          chatState.addToolFailure({
+            taskId: error.taskId || chatState.currentTaskId || 'unknown',
+            toolName: error.operation,
+            error: `${error.category}: ${error.message}`,
+            timestamp: Date.now(),
+          });
+        }
+        
         focusTextarea(textareaRef.current);
       }
     },
     [chatState, statusManager, apiClient, messageHandler],
+  );
+
+  const handleApprove = useCallback(
+    async (messageId: string) => {
+      if (chatState.isWaitingForResponse || !chatState.currentTaskId) return;
+
+      try {
+        statusManager.showStatusMessage(STATUS_MESSAGES.APPROVING);
+        
+        const success = await apiClient.sendTaskAction(
+          chatState.currentTaskId,
+          SUGGESTION_ACTIONS.APPROVE,
+        );
+
+        if (success) {
+          statusManager.showStatusMessage(STATUS_MESSAGES.APPROVED);
+          focusTextarea(textareaRef.current);
+        } else {
+          throw new Error("Failed to send approve action");
+        }
+      } catch (error) {
+        console.error("Error sending approve action:", error);
+        statusManager.showStatusMessage(STATUS_MESSAGES.ERROR_PROCESSING);
+      }
+    },
+    [chatState.isWaitingForResponse, chatState.currentTaskId, statusManager, apiClient],
+  );
+
+  const handleReject = useCallback(
+    async (messageId: string) => {
+      if (chatState.isWaitingForResponse || !chatState.currentTaskId) return;
+
+      try {
+        statusManager.showStatusMessage(STATUS_MESSAGES.REJECTING);
+        
+        const success = await apiClient.sendTaskAction(
+          chatState.currentTaskId,
+          SUGGESTION_ACTIONS.REJECT,
+        );
+
+        if (success) {
+          statusManager.showStatusMessage(STATUS_MESSAGES.REJECTED);
+          focusTextarea(textareaRef.current);
+        } else {
+          throw new Error("Failed to send reject action");
+        }
+      } catch (error) {
+        console.error("Error sending reject action:", error);
+        statusManager.showStatusMessage(STATUS_MESSAGES.ERROR_PROCESSING);
+      }
+    },
+    [chatState.isWaitingForResponse, chatState.currentTaskId, statusManager, apiClient],
   );
 
   const retryFailedTool = useCallback(
@@ -201,6 +382,8 @@ export const useChat = () => {
     handleSuggestionClick,
     sendMessage,
     retryFailedTool,
+    handleApprove,
+    handleReject,
     setInputValue: chatState.setInputValue,
     setSelectedMode: chatState.setSelectedMode,
     setSelectedExtension: chatState.setSelectedExtension,

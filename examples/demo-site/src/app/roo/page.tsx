@@ -41,6 +41,8 @@ export default function RooPage() {
     setCurrentImages,
     dismissToolFailure,
     resetSessionStats,
+    handleApprove,
+    handleReject,
   } = useChat();
 
   const [showSidebar, setShowSidebar] = useState(false);
@@ -124,6 +126,8 @@ export default function RooPage() {
         <MessageList
           messages={messages}
           onSuggestionClick={handleSuggestionClick}
+          onApprove={handleApprove}
+          onReject={handleReject}
           showTyping={showTyping}
         />
 

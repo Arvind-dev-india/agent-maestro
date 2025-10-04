@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { Message } from "./Message";
+import { EnhancedMessageItem } from "./EnhancedMessageItem";
 import { scrollToBottom } from "../utils/chatHelpers";
 import type { Message as MessageType } from "../types/chat";
 
@@ -7,12 +8,16 @@ interface MessageListProps {
   messages: MessageType[];
   onSuggestionClick: (suggestion: string) => void;
   showTyping?: boolean;
+  onApprove?: (messageId: string) => void;
+  onReject?: (messageId: string) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
   onSuggestionClick,
   showTyping = false,
+  onApprove,
+  onReject,
 }) => {
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -42,13 +47,29 @@ export const MessageList: React.FC<MessageListProps> = ({
       ref={chatMessagesRef}
       className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 scrollbar-thin scrollbar-thumb-white/30 scrollbar-track-white/10"
     >
-      {messages.map((message) => (
-        <Message
-          key={message.id}
-          message={message}
-          onSuggestionClick={onSuggestionClick}
-        />
-      ))}
+      {messages.map((message) => {
+        // Use enhanced renderer for messages with ClineMessage data
+        if (message.clineMessage) {
+          return (
+            <EnhancedMessageItem
+              key={message.id}
+              message={message}
+              onSuggestionClick={onSuggestionClick}
+              onApprove={() => onApprove?.(message.id)}
+              onReject={() => onReject?.(message.id)}
+            />
+          );
+        }
+        
+        // Fallback to original renderer
+        return (
+          <Message
+            key={message.id}
+            message={message}
+            onSuggestionClick={onSuggestionClick}
+          />
+        );
+      })}
     </div>
   );
 };

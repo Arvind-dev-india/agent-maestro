@@ -81,7 +81,44 @@ export const MESSAGE_TYPES = {
 
 export const ASK_TYPES = {
   FOLLOWUP: "followup",
+  COMMAND: "command",
+  COMMAND_OUTPUT: "command_output",
+  COMPLETION_RESULT: "completion_result",
+  TOOL: "tool",
+  API_REQ_FAILED: "api_req_failed",
+  RESUME_TASK: "resume_task",
+  RESUME_COMPLETED_TASK: "resume_completed_task",
+  MISTAKE_LIMIT_REACHED: "mistake_limit_reached",
+  BROWSER_ACTION_LAUNCH: "browser_action_launch",
   USE_MCP_SERVER: "use_mcp_server",
+  AUTO_APPROVAL_MAX_REQ_REACHED: "auto_approval_max_req_reached",
+} as const;
+
+export const SAY_TYPES = {
+  ERROR: "error",
+  API_REQ_STARTED: "api_req_started",
+  API_REQ_FINISHED: "api_req_finished",
+  API_REQ_RETRIED: "api_req_retried",
+  API_REQ_RETRY_DELAYED: "api_req_retry_delayed",
+  API_REQ_DELETED: "api_req_deleted",
+  TEXT: "text",
+  REASONING: "reasoning",
+  COMPLETION_RESULT: "completion_result",
+  USER_FEEDBACK: "user_feedback",
+  USER_FEEDBACK_DIFF: "user_feedback_diff",
+  COMMAND_OUTPUT: "command_output",
+  SHELL_INTEGRATION_WARNING: "shell_integration_warning",
+  BROWSER_ACTION: "browser_action",
+  BROWSER_ACTION_RESULT: "browser_action_result",
+  MCP_SERVER_REQUEST_STARTED: "mcp_server_request_started",
+  MCP_SERVER_RESPONSE: "mcp_server_response",
+  SUBTASK_RESULT: "subtask_result",
+  CHECKPOINT_SAVED: "checkpoint_saved",
+  ROOIGNORE_ERROR: "rooignore_error",
+  DIFF_ERROR: "diff_error",
+  CONDENSE_CONTEXT: "condense_context",
+  CONDENSE_CONTEXT_ERROR: "condense_context_error",
+  CODEBASE_SEARCH_RESULT: "codebase_search_result",
 } as const;
 
 export enum RooCodeEventName {

@@ -8,6 +8,7 @@ export interface Message {
   images?: string[];
   reasoning?: string;
   toolFailures?: ToolFailure[];
+  clineMessage?: import('./cline').ClineMessage; // Enhanced message data
 }
 
 export interface ChatState {
