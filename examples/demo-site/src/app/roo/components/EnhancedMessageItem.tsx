@@ -53,6 +53,14 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
           {/* Enhanced rendering for ClineMessage */}
           {clineMessage ? (
             <div className="space-y-3">
+              {/* Render say message */}
+              {clineMessage.say && (
+                <SayMessageRenderer 
+                  say={clineMessage.say} 
+                  text={clineMessage.text || message.content} 
+                />
+              )}
+
               {/* Render ask message */}
               {clineMessage.ask && (
                 <AskMessageRenderer
@@ -63,15 +71,7 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
                 />
               )}
 
-              {/* Render say message */}
-              {clineMessage.say && (
-                <SayMessageRenderer 
-                  say={clineMessage.say} 
-                  text={clineMessage.text || message.content} 
-                />
-              )}
-
-              {/* Show main message content when no ask/say, or when we have text content to display */}
+              {/* Show main message content when no ask/say, or as fallback content */}
               {(!clineMessage.ask && !clineMessage.say) && (message.content || clineMessage.text) && (
                 <MarkdownContent
                   content={message.content || clineMessage.text || ""}
@@ -80,7 +80,7 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
               )}
 
               {/* Show suggestions for enhanced messages */}
-              {message.suggestions && message.suggestions.length > 0 && (
+              {message.suggestions && message.suggestions.length > 0 && onSuggestionClick && (
                 <MessageSuggestions
                   suggestions={message.suggestions}
                   onSuggestionClick={onSuggestionClick}
@@ -214,10 +214,12 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
               )}
 
               {/* Suggestions */}
-              <MessageSuggestions
-                suggestions={message.suggestions || []}
-                onSuggestionClick={onSuggestionClick}
-              />
+              {onSuggestionClick && (
+                <MessageSuggestions
+                  suggestions={message.suggestions || []}
+                  onSuggestionClick={onSuggestionClick}
+                />
+              )}
             </div>
           )}
 

@@ -90,6 +90,10 @@ export const useChatState = () => {
     );
   }, []);
 
+  const getMessageById = useCallback((messageId: string): Message | undefined => {
+    return messages.find((msg) => msg.id === messageId);
+  }, [messages]);
+
   const updateTokenUsage = useCallback((usage: TokenUsage) => {
     setCurrentTokenUsage(usage);
     setSessionTokenUsage((prev) => ({
@@ -186,6 +190,7 @@ export const useChatState = () => {
     // Actions
     addMessage,
     updateMessage,
+    getMessageById,
     updateTokenUsage,
     addToolFailure,
     dismissToolFailure,

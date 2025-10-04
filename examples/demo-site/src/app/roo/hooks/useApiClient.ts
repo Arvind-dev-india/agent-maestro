@@ -275,12 +275,19 @@ export const useApiClient = () => {
     let buffer = "";
     let eventCount = 0;
     let lastActivity = Date.now();
+    let readerClosed = false;
 
     console.log(`🌊 [${new Date().toISOString()}] Creating SSE reader for response`);
 
     return {
       async read() {
         try {
+          // Check if reader was already closed
+          if (readerClosed) {
+            console.warn(`⚠️ [${new Date().toISOString()}] Attempting to read from closed SSE reader`);
+            return { done: true, events: [] };
+          }
+
           // Add a timeout for individual reads to detect stalled connections
           const readPromise = reader.read();
           const timeoutPromise = new Promise<never>((_, reject) => {
@@ -292,6 +299,7 @@ export const useApiClient = () => {
           const { done, value } = await Promise.race([readPromise, timeoutPromise]);
           
           if (done) {
+            readerClosed = true;
             console.log(`🔚 [${new Date().toISOString()}] SSE stream ended. Total events processed: ${eventCount}`);
             return { done: true, events: [] };
           }
@@ -328,9 +336,11 @@ export const useApiClient = () => {
                 });
               } catch (parseError: any) {
                 console.error(`❌ [${new Date().toISOString()}] Error parsing SSE data:`, {
-                  error: parseError.message,
+                  error: parseError?.message || parseError?.toString() || 'Unknown parse error',
                   line: line.substring(6),
                   currentEvent,
+                  parseErrorType: typeof parseError,
+                  fullParseError: parseError,
                 });
                 
                 // Don't throw here, just log and continue
@@ -343,14 +353,32 @@ export const useApiClient = () => {
 
           return { done: false, events };
         } catch (error: any) {
+          // Handle common stream termination scenarios gracefully
+          const errorMessage = error?.message || error?.toString() || 'Unknown error';
+          
+          // Check for network disconnection errors that should be handled gracefully
+          if (errorMessage.includes('network') || 
+              errorMessage.includes('aborted') || 
+              errorMessage.includes('cancelled') || 
+              errorMessage.includes('stream') ||
+              error?.name === 'AbortError' ||
+              error?.name === 'NetworkError') {
+            console.warn(`⚠️ [${new Date().toISOString()}] SSE stream terminated:`, errorMessage);
+            readerClosed = true;
+            return { done: true, events: [] };
+          }
+          
           console.error(`❌ [${new Date().toISOString()}] Error reading SSE stream:`, {
-            error: error.message,
-            name: error.name,
+            error: errorMessage,
+            name: error?.name || 'Error',
+            type: typeof error,
             eventCount,
             timeSinceLastActivity: Date.now() - lastActivity,
+            fullError: error,
           });
           
           // Clean up reader on error
+          readerClosed = true;
           try {
             reader.releaseLock();
           } catch (releaseError) {

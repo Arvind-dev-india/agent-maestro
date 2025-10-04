@@ -8,6 +8,7 @@ import { RooCodeEventName, STATUS_MESSAGES } from "../utils/constants";
 interface UseEnhancedMessageHandlerProps {
   addMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
+  getMessageById?: (messageId: string) => Message | undefined; // Optional for message merging
   setCurrentTaskId: (taskId: string | null) => void;
   setIsWaitingForResponse: (waiting: boolean) => void;
   showStatusMessage: (message: string) => void;
@@ -19,6 +20,7 @@ interface UseEnhancedMessageHandlerProps {
 export const useEnhancedMessageHandler = ({
   addMessage,
   updateMessage,
+  getMessageById,
   setCurrentTaskId,
   setIsWaitingForResponse,
   showStatusMessage,
@@ -190,13 +192,39 @@ export const useEnhancedMessageHandler = ({
         // Use accumulated text if available, otherwise use message content
         const finalContent = accumulatedText.current || message.content;
         
+        // Get existing message to merge clineMessage properly
+        let mergedClineMessage = clineMessage;
+        if (getMessageById && currentAgentMessageId.current) {
+          const existingMessage = getMessageById(currentAgentMessageId.current);
+          if (existingMessage?.clineMessage) {
+            // Merge existing clineMessage with new one, preserving both say and ask
+            mergedClineMessage = {
+              ...existingMessage.clineMessage,
+              ...clineMessage,
+              // Preserve both say and ask if they exist in either message
+              say: clineMessage.say || existingMessage.clineMessage.say,
+              ask: clineMessage.ask || existingMessage.clineMessage.ask,
+              text: clineMessage.text || existingMessage.clineMessage.text,
+            };
+            
+            console.log(`🔄 [Enhanced Handler] Merging clineMessage:`, {
+              existingSay: !!existingMessage.clineMessage.say,
+              existingAsk: !!existingMessage.clineMessage.ask,
+              newSay: !!clineMessage.say,
+              newAsk: !!clineMessage.ask,
+              mergedSay: !!mergedClineMessage.say,
+              mergedAsk: !!mergedClineMessage.ask,
+            });
+          }
+        }
+        
         updateMessage(currentAgentMessageId.current, {
           content: finalContent,
           suggestions: message.suggestions,
           isCompletionResult: message.isCompletionResult,
           reasoning: message.reasoning,
           images: message.images,
-          clineMessage: clineMessage, // Include the ClineMessage for enhanced rendering
+          clineMessage: mergedClineMessage, // Use merged ClineMessage for enhanced rendering
         });
       } else {
         // Create new message only if it has content or is an ask/say message with substance

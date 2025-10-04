@@ -25,6 +25,7 @@ export const useChat = () => {
   const messageHandler = useEnhancedMessageHandler({
     addMessage: chatState.addMessage,
     updateMessage: chatState.updateMessage,
+    getMessageById: chatState.getMessageById,
     setCurrentTaskId: chatState.setCurrentTaskId,
     setIsWaitingForResponse: chatState.setIsWaitingForResponse,
     showStatusMessage: statusManager.showStatusMessage,
@@ -102,7 +103,7 @@ export const useChat = () => {
           suggestion,
           chatState.selectedMode,
           chatState.selectedExtension,
-          taskId, // Use existing task ID
+          taskId || undefined, // Convert null to undefined
           undefined, // No images for suggestions
         );
 
