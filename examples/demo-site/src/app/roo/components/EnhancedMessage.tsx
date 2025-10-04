@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { MarkdownContent } from "./MarkdownContent";
 import { MessageSuggestions } from "./MessageSuggestions";
+import ToolOperationDisplay from "./ToolOperationDisplay";
 import type { Message as MessageType } from "../types/chat";
 
 interface EnhancedMessageProps {
@@ -28,36 +29,9 @@ export const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
   const { isParsed, data, raw } = parseMessageContent(message.content);
 
   const renderStructuredContent = (data: any) => {
-    // Handle tool operations
+    // Handle tool operations - This is the main improvement!
     if (data.tool) {
-      return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
-          <div className="flex items-center space-x-2 mb-2">
-            <span className="text-blue-600 font-medium">🔧 {data.tool}</span>
-            {data.path && (
-              <span className="text-sm text-gray-600 font-mono">{data.path}</span>
-            )}
-          </div>
-          
-          {data.diff && (
-            <div className="bg-white border rounded p-2 font-mono text-sm overflow-x-auto">
-              <pre className="whitespace-pre-wrap">{data.diff}</pre>
-            </div>
-          )}
-          
-          {data.content && !data.diff && (
-            <div className="bg-white border rounded p-2 max-h-40 overflow-y-auto">
-              <pre className="text-sm whitespace-pre-wrap">{data.content}</pre>
-            </div>
-          )}
-          
-          {data.query && (
-            <div className="text-sm text-gray-700">
-              <strong>Query:</strong> {data.query}
-            </div>
-          )}
-        </div>
-      );
+      return <ToolOperationDisplay toolData={data} className="mb-2" />;
     }
 
     // Handle command execution

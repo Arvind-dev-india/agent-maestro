@@ -10,6 +10,7 @@ import { ProfileManager } from "./components/ProfileManager";
 import { TaskHistory } from "./components/TaskHistory";
 import { ErrorList } from "./components/ErrorDisplay";
 import { LiveTokenCounter } from "./components/TokenUsageDisplay";
+import ToolUsageTracker from "./components/ToolUsageTracker";
 import ConnectionStatus from "../../components/ConnectionStatus";
 
 export default function RooPage() {
@@ -27,6 +28,7 @@ export default function RooPage() {
     sessionTokenUsage,
     currentTokenUsage,
     toolFailures,
+    toolUsageStats,
 
     // Actions
     handleNewChat,
@@ -42,7 +44,7 @@ export default function RooPage() {
   } = useChat();
 
   const [showSidebar, setShowSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"profiles" | "history">("profiles");
+  const [sidebarTab, setSidebarTab] = useState<"profiles" | "history" | "tools">("profiles");
 
   const handleTaskResume = (taskId: string) => {
     // This would typically involve calling an API endpoint to resume the task
@@ -63,9 +65,9 @@ export default function RooPage() {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-indigo-500 to-purple-600">
+    <div className="h-screen flex bg-gradient-to-br from-indigo-500 to-purple-600 relative">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${showSidebar ? 'md:mr-96' : ''}`}>
         <ChatHeader 
           onNewChat={handleNewChat} 
           hasMessages={messages.length > 0}
@@ -80,9 +82,9 @@ export default function RooPage() {
           </div>
         )}
 
-        {/* Token Usage Display */}
+        {/* Token Usage & Tool Usage Display */}
         {messages.length > 0 && (
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 space-y-2">
             <div className="flex items-center justify-between">
               <LiveTokenCounter
                 currentUsage={currentTokenUsage}
@@ -95,6 +97,15 @@ export default function RooPage() {
                 Reset Session
               </button>
             </div>
+            
+            {/* Compact Tool Usage Display */}
+            {Object.keys(toolUsageStats).length > 0 && (
+              <ToolUsageTracker
+                toolUsage={toolUsageStats}
+                compact={true}
+                className="bg-white/10 backdrop-blur-sm border-white/20 text-white"
+              />
+            )}
           </div>
         )}
 
@@ -133,68 +144,101 @@ export default function RooPage() {
         <StatusIndicator show={showStatus} message={statusMessage} />
       </div>
 
-      {/* Sidebar */}
-      <div className={`${showSidebar ? 'w-96' : 'w-0'} transition-all duration-300 overflow-hidden bg-white/10 backdrop-blur-sm border-l border-white/20`}>
+      {/* Responsive Sidebar */}
+      <div className={`
+        ${showSidebar ? 'translate-x-0' : 'translate-x-full'} 
+        fixed md:absolute top-0 right-0 h-full w-full sm:w-96 md:w-96
+        transition-transform duration-300 ease-in-out
+        bg-white/95 md:bg-white/10 backdrop-blur-sm 
+        border-l border-white/20 z-50
+        flex flex-col
+      `}>
+        {/* Mobile Backdrop */}
         {showSidebar && (
-          <div className="h-full flex flex-col">
-            {/* Sidebar Header */}
-            <div className="flex items-center border-b border-white/20 p-4">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setSidebarTab("profiles")}
-                  className={`px-3 py-2 text-sm rounded transition-colors ${
-                    sidebarTab === "profiles"
-                      ? "bg-white/20 text-white"
-                      : "text-white/60 hover:text-white/80"
-                  }`}
-                >
-                  Profiles
-                </button>
-                <button
-                  onClick={() => setSidebarTab("history")}
-                  className={`px-3 py-2 text-sm rounded transition-colors ${
-                    sidebarTab === "history"
-                      ? "bg-white/20 text-white"
-                      : "text-white/60 hover:text-white/80"
-                  }`}
-                >
-                  History
-                </button>
-              </div>
+          <div 
+            className="md:hidden fixed inset-0 bg-black/50 -z-10"
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
+        
+        {/* Sidebar Content */}
+        <div className="h-full flex flex-col">
+          {/* Sidebar Header - Mobile Responsive */}
+          <div className="flex items-center border-b border-gray-200 md:border-white/20 p-4 bg-white md:bg-transparent">
+            <div className="flex space-x-1 sm:space-x-2 flex-1 min-w-0">
               <button
-                onClick={() => setShowSidebar(false)}
-                className="ml-auto text-white/60 hover:text-white/80"
+                onClick={() => setSidebarTab("profiles")}
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm rounded transition-colors flex-1 min-w-0 truncate ${
+                  sidebarTab === "profiles"
+                    ? "bg-blue-500 md:bg-white/20 text-white"
+                    : "text-gray-700 md:text-white/60 hover:text-gray-900 md:hover:text-white/80 bg-gray-100 md:bg-transparent"
+                }`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                📁 Profiles
+              </button>
+              <button
+                onClick={() => setSidebarTab("history")}
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm rounded transition-colors flex-1 min-w-0 truncate ${
+                  sidebarTab === "history"
+                    ? "bg-blue-500 md:bg-white/20 text-white"
+                    : "text-gray-700 md:text-white/60 hover:text-gray-900 md:hover:text-white/80 bg-gray-100 md:bg-transparent"
+                }`}
+              >
+                📚 History
+              </button>
+              <button
+                onClick={() => setSidebarTab("tools")}
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm rounded transition-colors flex-1 min-w-0 truncate ${
+                  sidebarTab === "tools"
+                    ? "bg-blue-500 md:bg-white/20 text-white"
+                    : "text-gray-700 md:text-white/60 hover:text-gray-900 md:hover:text-white/80 bg-gray-100 md:bg-transparent"
+                }`}
+              >
+                🛠️ Tools
               </button>
             </div>
-
-            {/* Sidebar Content */}
-            <div className="flex-1 overflow-y-auto">
-              {sidebarTab === "profiles" && (
-                <div className="p-4">
-                  <ProfileManager
-                    onProfileChange={handleProfileChange}
-                    extensionId={selectedExtension}
-                    className="text-white"
-                  />
-                </div>
-              )}
-              {sidebarTab === "history" && (
-                <div className="p-4">
-                  <TaskHistory
-                    onTaskResume={handleTaskResume}
-                    onTaskView={handleTaskView}
-                    extensionId={selectedExtension}
-                    className="text-white"
-                  />
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => setShowSidebar(false)}
+              className="ml-2 p-2 text-gray-600 md:text-white/60 hover:text-gray-800 md:hover:text-white/80 rounded-lg hover:bg-gray-100 md:hover:bg-white/10 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        )}
+
+          {/* Sidebar Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto bg-white md:bg-transparent">
+            {sidebarTab === "profiles" && (
+              <div className="p-4">
+                <ProfileManager
+                  onProfileChange={handleProfileChange}
+                  extensionId={selectedExtension}
+                  className="text-gray-900 md:text-white"
+                />
+              </div>
+            )}
+            {sidebarTab === "history" && (
+              <div className="p-4">
+                <TaskHistory
+                  onTaskResume={handleTaskResume}
+                  onTaskView={handleTaskView}
+                  extensionId={selectedExtension}
+                  className="text-gray-900 md:text-white"
+                />
+              </div>
+            )}
+            {sidebarTab === "tools" && (
+              <div className="p-4">
+                <ToolUsageTracker
+                  toolUsage={toolUsageStats}
+                  compact={false}
+                  className="bg-gray-50 md:bg-white/10 backdrop-blur-sm border-gray-200 md:border-white/20 text-gray-900 md:text-white"
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

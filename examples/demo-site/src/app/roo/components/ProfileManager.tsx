@@ -166,7 +166,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Profiles</h3>
+        <h3 className="text-lg font-semibold">Profiles</h3>
         <button
           onClick={() => setShowCreateForm(true)}
           className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
@@ -193,22 +193,22 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
             key={profile.id}
             className={`p-3 border rounded-lg transition-colors ${
               profile.id === activeProfile?.id
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
+                ? "border-blue-500 bg-blue-50 md:bg-blue-500/20"
+                : "border-gray-200 md:border-white/20 hover:border-gray-300 md:hover:border-white/30 bg-white/50 md:bg-white/10"
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <h4 className="font-medium text-gray-900">{profile.name}</h4>
+                  <h4 className="font-medium">{profile.name}</h4>
                   {profile.id === activeProfile?.id && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    <span className="px-2 py-1 bg-blue-100 md:bg-blue-500 text-blue-800 md:text-white text-xs rounded-full">
                       Active
                     </span>
                   )}
                 </div>
                 {profile.apiProvider && (
-                  <p className="text-sm text-gray-600">{profile.apiProvider}</p>
+                  <p className="text-sm opacity-75">{profile.apiProvider}</p>
                 )}
               </div>
               
@@ -234,7 +234,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         ))}
 
         {profiles.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 opacity-75">
             <p>No profiles configured</p>
             <p className="text-sm">Create your first profile to get started</p>
           </div>

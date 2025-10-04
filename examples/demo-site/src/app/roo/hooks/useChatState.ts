@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_MODE } from "../utils/constants";
-import type { Message, ChatState, TokenUsage, ToolFailure } from "../types/chat";
+import type { Message, ChatState, TokenUsage, ToolFailure, ToolUsageStats } from "../types/chat";
 
 export const useChatState = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -27,11 +27,62 @@ export const useChatState = () => {
     contextTokens: 0,
   });
   const [toolFailures, setToolFailures] = useState<ToolFailure[]>([]);
+  const [toolUsageStats, setToolUsageStats] = useState<ToolUsageStats>({});
 
   const addMessage = useCallback((message: Message) => {
     const messageWithId = { ...message, id: message.id || uuidv4() };
     setMessages((prev) => [...prev, messageWithId]);
+    
+    // Track tool usage from message content
+    trackToolUsageFromMessage(messageWithId);
   }, []);
+
+  const trackToolUsageFromMessage = useCallback((message: Message) => {
+    if (message.isUser) return; // Only track AI tool usage
+    
+    try {
+      const data = JSON.parse(message.content);
+      if (data.tool) {
+        const toolName = mapToolNameFromMessage(data.tool);
+        if (toolName) {
+          setToolUsageStats(prev => {
+            const current = prev[toolName] || { attempts: 0, failures: 0, lastUsed: 0 };
+            return {
+              ...prev,
+              [toolName]: {
+                ...current,
+                attempts: current.attempts + 1,
+                lastUsed: Date.now(),
+              }
+            };
+          });
+        }
+      }
+    } catch {
+      // Not JSON or no tool info, ignore
+    }
+  }, []);
+
+  // Map message tool names to official tool names
+  const mapToolNameFromMessage = (toolName: string): string | null => {
+    const toolMap: Record<string, string> = {
+      "readFile": "read_file",
+      "editedExistingFile": "write_to_file", 
+      "newFileCreated": "write_to_file",
+      "appliedDiff": "apply_diff",
+      "listFilesTopLevel": "list_files",
+      "listFilesRecursive": "list_files",
+      "searchFiles": "search_files",
+      "listCodeDefinitionNames": "list_code_definition_names",
+      "searchAndReplace": "search_and_replace",
+      "insertContent": "insert_content",
+      "fetchInstructions": "fetch_instructions",
+      "switchMode": "switch_mode",
+      "newTask": "new_task",
+      "codebaseSearch": "codebase_search",
+    };
+    return toolMap[toolName] || null;
+  };
 
   const updateMessage = useCallback((messageId: string, updates: Partial<Message>) => {
     setMessages((prev) =>
@@ -53,6 +104,19 @@ export const useChatState = () => {
 
   const addToolFailure = useCallback((failure: ToolFailure) => {
     setToolFailures((prev) => [failure, ...prev.slice(0, 9)]); // Keep last 10
+    
+    // Update tool usage stats to track failure
+    setToolUsageStats(prev => {
+      const current = prev[failure.toolName] || { attempts: 0, failures: 0, lastUsed: 0 };
+      return {
+        ...prev,
+        [failure.toolName]: {
+          ...current,
+          failures: current.failures + 1,
+          lastUsed: Date.now(),
+        }
+      };
+    });
   }, []);
 
   const dismissToolFailure = useCallback((index: number) => {
@@ -92,6 +156,7 @@ export const useChatState = () => {
       contextTokens: 0,
     });
     setToolFailures([]);
+    setToolUsageStats({});
   }, []);
 
   return {
@@ -107,6 +172,7 @@ export const useChatState = () => {
     sessionTokenUsage,
     currentTokenUsage,
     toolFailures,
+    toolUsageStats,
 
     // Setters
     setInputValue,

@@ -191,6 +191,7 @@ export const useChat = () => {
     sessionTokenUsage: chatState.sessionTokenUsage,
     currentTokenUsage: chatState.currentTokenUsage,
     toolFailures: chatState.toolFailures,
+    toolUsageStats: chatState.toolUsageStats,
 
     // Refs
     textareaRef,

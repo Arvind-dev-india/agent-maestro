@@ -21,6 +21,7 @@ export interface ChatState {
   sessionTokenUsage: TokenUsage;
   currentTokenUsage: TokenUsage;
   toolFailures: ToolFailure[];
+  toolUsageStats: ToolUsageStats;
 }
 
 export interface ApiResponse {
@@ -76,4 +77,13 @@ export interface ToolFailure {
   toolName: string;
   error: string;
   timestamp: number;
+}
+
+export interface ToolUsageStats {
+  [toolName: string]: {
+    attempts: number;
+    failures: number;
+    lastUsed: number;
+    totalTime?: number;
+  };
 }

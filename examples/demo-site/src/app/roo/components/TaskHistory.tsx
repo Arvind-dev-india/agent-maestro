@@ -114,11 +114,11 @@ export const TaskHistory: React.FC<TaskHistoryProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Task History</h3>
-          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+          <h3 className="text-lg font-semibold">Task History</h3>
+          <div className="flex items-center space-x-4 text-sm opacity-75 mt-1">
             <span>{totalStats.totalTasks} tasks</span>
             <span>{totalStats.totalTokens.toLocaleString()} tokens</span>
-            <span className="font-medium text-green-600">
+            <span className="font-medium text-green-600 md:text-green-400">
               ${totalStats.totalCost.toFixed(4)}
             </span>
           </div>
@@ -126,7 +126,7 @@ export const TaskHistory: React.FC<TaskHistoryProps> = ({
         
         <button
           onClick={fetchHistory}
-          className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+          className="px-3 py-2 text-sm bg-gray-100 md:bg-white/20 hover:bg-gray-200 md:hover:bg-white/30 text-gray-900 md:text-white rounded-md transition-colors"
         >
           Refresh
         </button>
@@ -140,13 +140,13 @@ export const TaskHistory: React.FC<TaskHistoryProps> = ({
             placeholder="Search tasks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 md:border-white/20 bg-white md:bg-white/10 text-gray-900 md:text-white placeholder-gray-500 md:placeholder-white/60 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as "date" | "cost" | "tokens")}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-gray-300 md:border-white/20 bg-white md:bg-white/10 text-gray-900 md:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="date">Sort by Date</option>
           <option value="cost">Sort by Cost</option>
@@ -169,11 +169,12 @@ export const TaskHistory: React.FC<TaskHistoryProps> = ({
             onResume={() => onTaskResume(task.id)}
             onView={() => onTaskView(task.id)}
             onSelect={() => setSelectedTask(task)}
+            className={className}
           />
         ))}
 
         {filteredAndSortedTasks.length === 0 && !isLoading && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 opacity-75">
             {searchTerm ? (
               <p>No tasks found matching "{searchTerm}"</p>
             ) : (
@@ -203,6 +204,7 @@ interface TaskHistoryItemProps {
   onResume: () => void;
   onView: () => void;
   onSelect: () => void;
+  className?: string;
 }
 
 const TaskHistoryItem: React.FC<TaskHistoryItemProps> = ({
@@ -210,33 +212,34 @@ const TaskHistoryItem: React.FC<TaskHistoryItemProps> = ({
   onResume,
   onView,
   onSelect,
+  className = "",
 }) => {
   const totalTokens = task.tokensIn + task.tokensOut;
   const date = new Date(task.ts);
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+    <div className="border border-gray-200 md:border-white/20 bg-white/50 md:bg-white/10 rounded-lg p-4 hover:border-gray-300 md:hover:border-white/30 transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
           <div className="flex items-center space-x-2 mb-2">
-            <h4 className="font-medium text-gray-900 truncate">
+            <h4 className="font-medium truncate">
               {task.task.length > 60 ? `${task.task.substring(0, 60)}...` : task.task}
             </h4>
             {task.number && (
-              <span className="text-xs text-gray-500">#{task.number}</span>
+              <span className="text-xs opacity-75">#{task.number}</span>
             )}
           </div>
           
-          <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
+          <div className="flex items-center space-x-4 text-sm opacity-75 mb-2">
             <span>{date.toLocaleDateString()} {date.toLocaleTimeString()}</span>
             <span>{totalTokens.toLocaleString()} tokens</span>
-            <span className="text-green-600 font-medium">
+            <span className="text-green-600 md:text-green-400 font-medium">
               ${task.totalCost.toFixed(4)}
             </span>
           </div>
           
           {task.workspace && (
-            <p className="text-xs text-gray-400 truncate">
+            <p className="text-xs opacity-60 truncate">
               📁 {task.workspace}
             </p>
           )}
@@ -245,14 +248,14 @@ const TaskHistoryItem: React.FC<TaskHistoryItemProps> = ({
         <div className="flex items-center space-x-2 ml-4">
           <button
             onClick={onView}
-            className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800"
+            className="px-2 py-1 text-xs text-blue-600 md:text-blue-400 hover:text-blue-800 md:hover:text-blue-300"
             title="View details"
           >
             View
           </button>
           <button
             onClick={onResume}
-            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
+            className="px-3 py-1 text-xs bg-blue-100 md:bg-blue-500 text-blue-700 md:text-white hover:bg-blue-200 md:hover:bg-blue-600 rounded"
             title="Resume task"
           >
             Resume
