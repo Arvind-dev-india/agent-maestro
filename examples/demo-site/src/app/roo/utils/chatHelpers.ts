@@ -14,6 +14,8 @@ export const createMessage = (
   options: {
     suggestions?: string[];
     isCompletionResult?: boolean;
+    images?: string[];
+    reasoning?: string;
   } = {},
 ): Message => {
   return {
@@ -21,7 +23,10 @@ export const createMessage = (
     content,
     isUser,
     timestamp: getCurrentTime(),
-    ...options,
+    suggestions: options.suggestions,
+    isCompletionResult: options.isCompletionResult,
+    images: options.images,
+    reasoning: options.reasoning,
   };
 };
 

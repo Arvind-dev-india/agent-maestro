@@ -95,8 +95,8 @@ export enum RooCodeEventName {
   TaskAborted = "taskAborted",
   TaskSpawned = "taskSpawned",
   TaskCompleted = "taskCompleted",
-  TaskTokenUsageUpdated = "taskTokenUsageUpdated",
   TaskToolFailed = "taskToolFailed",
+  TaskTokenUsageUpdated = "taskTokenUsageUpdated",
   EvalPass = "evalPass",
   EvalFail = "evalFail",
 }

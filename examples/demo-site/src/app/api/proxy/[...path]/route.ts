@@ -52,18 +52,27 @@ async function handleProxyRequest(request: NextRequest, pathSegments: string[]) 
       method: request.method,
       headers,
       body: body || undefined,
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      // Remove timeout for SSE streams
     });
-    
-    const responseData = await response.text();
     
     // Create response headers
     const responseHeaders = new Headers();
     
-    // Copy content type and other important headers
+    // Copy important headers from the upstream response
     const contentType = response.headers.get('Content-Type');
     if (contentType) {
       responseHeaders.set('Content-Type', contentType);
+    }
+    
+    // Copy SSE-specific headers
+    const cacheControl = response.headers.get('Cache-Control');
+    if (cacheControl) {
+      responseHeaders.set('Cache-Control', cacheControl);
+    }
+    
+    const connection = response.headers.get('Connection');
+    if (connection) {
+      responseHeaders.set('Connection', connection);
     }
     
     // Add CORS headers
@@ -71,11 +80,23 @@ async function handleProxyRequest(request: NextRequest, pathSegments: string[]) 
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     
-    return new NextResponse(responseData, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders
-    });
+    // Check if this is an SSE response (text/event-stream)
+    if (contentType === 'text/event-stream') {
+      // For SSE streams, we need to pass through the response body as-is
+      return new NextResponse(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
+      });
+    } else {
+      // For regular responses, read the full body
+      const responseData = await response.text();
+      return new NextResponse(responseData, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
+      });
+    }
     
   } catch (error) {
     console.error('Proxy error:', error);

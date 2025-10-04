@@ -38,12 +38,18 @@ export const useApiClient = () => {
       mode: string,
       extensionId: string,
       taskId?: string,
+      images?: string[],
     ): Promise<Response> => {
       const url = taskId
         ? API_ENDPOINTS.TASK_MESSAGE(taskId)
         : API_ENDPOINTS.TASK;
 
-      const body = { text: message, configuration: { mode }, extensionId };
+      const body = { 
+        text: message, 
+        configuration: { mode }, 
+        extensionId,
+        images: images || [],
+      };
 
       const response = await fetch(url, {
         method: "POST",

@@ -12,7 +12,7 @@ import {
   parseFollowupData,
   parseMcpServerData,
 } from "../utils/chatHelpers";
-import type { Message } from "../types/chat";
+import type { Message, TokenUsage, ToolFailure } from "../types/chat";
 
 interface UseMessageHandlerProps {
   addMessage: (message: Message) => void;
@@ -21,6 +21,8 @@ interface UseMessageHandlerProps {
   setIsWaitingForResponse: (waiting: boolean) => void;
   showStatusMessage: (message: string) => void;
   focusTextarea: () => void;
+  updateTokenUsage: (usage: TokenUsage) => void;
+  addToolFailure: (failure: ToolFailure) => void;
 }
 
 export const useMessageHandler = ({
@@ -30,6 +32,8 @@ export const useMessageHandler = ({
   setIsWaitingForResponse,
   showStatusMessage,
   focusTextarea,
+  updateTokenUsage,
+  addToolFailure,
 }: UseMessageHandlerProps) => {
   const currentAgentMessageId = useRef<string | null>(null);
   const accumulatedText = useRef<string>("");
@@ -58,6 +62,35 @@ export const useMessageHandler = ({
     [showStatusMessage],
   );
 
+  const handleTaskCompleted = useCallback((data: any) => {
+    showStatusMessage(STATUS_MESSAGES.FINALIZING);
+    
+    // Update token usage if provided
+    if (data.tokenUsage) {
+      updateTokenUsage(data.tokenUsage);
+    }
+  }, [showStatusMessage, updateTokenUsage]);
+
+  const handleTaskTokenUsageUpdated = useCallback((data: any) => {
+    if (data.tokenUsage) {
+      updateTokenUsage(data.tokenUsage);
+    }
+  }, [updateTokenUsage]);
+
+  const handleTaskToolFailed = useCallback((data: any) => {
+    if (data.taskId && data.tool && data.error) {
+      const toolFailure: ToolFailure = {
+        taskId: data.taskId,
+        toolName: data.tool,
+        error: data.error,
+        timestamp: Date.now(),
+      };
+      addToolFailure(toolFailure);
+      
+      showStatusMessage(`Tool failed: ${data.tool}`);
+    }
+  }, [addToolFailure, showStatusMessage]);
+
   const handleSayMessage = useCallback(
     (data: any) => {
       if (data.message?.type === MESSAGE_TYPES.SAY && data.message?.text) {
@@ -70,13 +103,25 @@ export const useMessageHandler = ({
           });
           newAgentMessage.id = newAgentMessageId;
 
+          // Add reasoning if available
+          if (data.message.reasoning) {
+            newAgentMessage.reasoning = data.message.reasoning;
+          }
+
           addMessage(newAgentMessage);
           accumulatedText.current = data.message.text;
         } else {
           accumulatedText.current = data.message.text;
-          updateMessage(currentAgentMessageId.current, {
+          const updates: Partial<Message> = {
             content: accumulatedText.current,
-          });
+          };
+
+          // Update reasoning if available
+          if (data.message.reasoning) {
+            updates.reasoning = data.message.reasoning;
+          }
+
+          updateMessage(currentAgentMessageId.current, updates);
         }
 
         if (!data.message.partial) {
@@ -202,10 +247,6 @@ export const useMessageHandler = ({
     ],
   );
 
-  const handleTaskCompleted = useCallback(() => {
-    showStatusMessage(STATUS_MESSAGES.FINALIZING);
-  }, [showStatusMessage]);
-
   const handleTaskError = useCallback(() => {
     showStatusMessage(STATUS_MESSAGES.TASK_ERROR);
     setIsWaitingForResponse(false);
@@ -229,6 +270,15 @@ export const useMessageHandler = ({
         case RooCodeEventName.TaskUnpaused:
           handleTaskResumed(data);
           break;
+        case RooCodeEventName.TaskCompleted:
+          handleTaskCompleted(data);
+          break;
+        case RooCodeEventName.TaskTokenUsageUpdated:
+          handleTaskTokenUsageUpdated(data);
+          break;
+        case RooCodeEventName.TaskToolFailed:
+          handleTaskToolFailed(data);
+          break;
         case RooCodeEventName.Message:
           if (data.message?.partial !== undefined) {
             if (data.message.type === MESSAGE_TYPES.SAY) {
@@ -242,9 +292,6 @@ export const useMessageHandler = ({
             }
           }
           break;
-        case RooCodeEventName.TaskCompleted:
-          handleTaskCompleted();
-          break;
         case RooCodeEventName.TaskAborted:
           handleTaskError();
           break;
@@ -253,10 +300,12 @@ export const useMessageHandler = ({
     [
       handleTaskCreated,
       handleTaskResumed,
+      handleTaskCompleted,
+      handleTaskTokenUsageUpdated,
+      handleTaskToolFailed,
       handleSayMessage,
       handleFollowupAsk,
       handleMcpServerAsk,
-      handleTaskCompleted,
       handleTaskError,
     ],
   );

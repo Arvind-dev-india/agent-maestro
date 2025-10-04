@@ -29,6 +29,8 @@ export const useChat = () => {
     setIsWaitingForResponse: chatState.setIsWaitingForResponse,
     showStatusMessage: statusManager.showStatusMessage,
     focusTextarea: focusTextareaHelper,
+    updateTokenUsage: chatState.updateTokenUsage,
+    addToolFailure: chatState.addToolFailure,
   });
 
   const handleNewChat = useCallback(() => {
@@ -94,10 +96,14 @@ export const useChat = () => {
   const sendMessage = useCallback(
     async (messageText?: string) => {
       const message = messageText || chatState.inputValue.trim();
-      if (!message || chatState.isWaitingForResponse) return;
+      const hasContent = message || chatState.currentImages.length > 0;
+      
+      if (!hasContent || chatState.isWaitingForResponse) return;
 
       // Add user message
-      const userMessage = createMessage(message, true);
+      const userMessage = createMessage(message, true, {
+        images: chatState.currentImages.length > 0 ? chatState.currentImages : undefined,
+      });
       chatState.addMessage(userMessage);
       chatState.setInputValue("");
       resetTextarea(textareaRef.current);
@@ -114,8 +120,12 @@ export const useChat = () => {
           chatState.selectedMode,
           chatState.selectedExtension,
           chatState.currentTaskId || undefined,
+          chatState.currentImages.length > 0 ? chatState.currentImages : undefined,
         );
 
+        // Clear images after sending
+        chatState.setCurrentImages([]);
+        
         chatState.setShowTyping(false);
         statusManager.showStatusMessage(STATUS_MESSAGES.RECEIVING);
 
@@ -150,6 +160,23 @@ export const useChat = () => {
     [chatState, statusManager, apiClient, messageHandler],
   );
 
+  const retryFailedTool = useCallback(
+    async (taskId: string) => {
+      if (chatState.isWaitingForResponse) return;
+      
+      statusManager.showStatusMessage("Retrying failed operation...");
+      
+      try {
+        // Send a retry message
+        await sendMessage("Please retry the failed operation.");
+      } catch (error) {
+        console.error("Error retrying tool:", error);
+        statusManager.showStatusMessage("Failed to retry operation");
+      }
+    },
+    [chatState.isWaitingForResponse, statusManager, sendMessage],
+  );
+
   return {
     // State
     messages: chatState.messages,
@@ -160,6 +187,10 @@ export const useChat = () => {
     showStatus: statusManager.showStatus,
     selectedMode: chatState.selectedMode,
     selectedExtension: chatState.selectedExtension,
+    currentImages: chatState.currentImages,
+    sessionTokenUsage: chatState.sessionTokenUsage,
+    currentTokenUsage: chatState.currentTokenUsage,
+    toolFailures: chatState.toolFailures,
 
     // Refs
     textareaRef,
@@ -168,8 +199,12 @@ export const useChat = () => {
     handleNewChat,
     handleSuggestionClick,
     sendMessage,
+    retryFailedTool,
     setInputValue: chatState.setInputValue,
     setSelectedMode: chatState.setSelectedMode,
     setSelectedExtension: chatState.setSelectedExtension,
+    setCurrentImages: chatState.setCurrentImages,
+    dismissToolFailure: chatState.dismissToolFailure,
+    resetSessionStats: chatState.resetSessionStats,
   };
 };

@@ -5,6 +5,9 @@ export interface Message {
   timestamp: string;
   suggestions?: string[];
   isCompletionResult?: boolean;
+  images?: string[];
+  reasoning?: string;
+  toolFailures?: ToolFailure[];
 }
 
 export interface ChatState {
@@ -14,6 +17,10 @@ export interface ChatState {
   showTyping: boolean;
   statusMessage: string;
   showStatus: boolean;
+  currentImages: string[];
+  sessionTokenUsage: TokenUsage;
+  currentTokenUsage: TokenUsage;
+  toolFailures: ToolFailure[];
 }
 
 export interface ApiResponse {
@@ -54,3 +61,19 @@ export type MessageEventType =
 export type MessageType = "say" | "ask";
 export type AskType = "followup" | "use_mcp_server";
 export type ActionType = "pressPrimaryButton" | "pressSecondaryButton";
+
+export interface TokenUsage {
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCacheWrites?: number;
+  totalCacheReads?: number;
+  totalCost: number;
+  contextTokens: number;
+}
+
+export interface ToolFailure {
+  taskId: string;
+  toolName: string;
+  error: string;
+  timestamp: number;
+}
