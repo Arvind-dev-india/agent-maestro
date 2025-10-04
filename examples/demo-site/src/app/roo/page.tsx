@@ -67,9 +67,9 @@ export default function RooPage() {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-indigo-500 to-purple-600 relative">
+    <div className="h-screen flex bg-gradient-to-br from-indigo-500 to-purple-600 relative overflow-hidden">
       {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${showSidebar ? 'md:mr-96' : ''}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${showSidebar ? 'md:mr-96' : ''} min-w-0`}>
         <ChatHeader 
           onNewChat={handleNewChat} 
           hasMessages={messages.length > 0}
@@ -79,15 +79,15 @@ export default function RooPage() {
 
         {/* Connection Status - only show when there are no messages to keep UI clean */}
         {messages.length === 0 && (
-          <div className="px-4 pt-2">
+          <div className="px-2 pt-2 sm:px-4">
             <ConnectionStatus />
           </div>
         )}
 
         {/* Token Usage & Tool Usage Display */}
         {messages.length > 0 && (
-          <div className="px-4 py-2 space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="px-2 py-2 space-y-2 sm:px-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <LiveTokenCounter
                 currentUsage={currentTokenUsage}
                 sessionTotal={sessionTokenUsage}
@@ -113,7 +113,7 @@ export default function RooPage() {
 
         {/* Error Display */}
         {toolFailures.length > 0 && (
-          <div className="px-4 pb-2">
+          <div className="px-2 pb-2 sm:px-4">
             <ErrorList
               errors={toolFailures}
               onRetryError={retryFailedTool}

@@ -14,12 +14,12 @@ export const Message: React.FC<MessageProps> = ({
 }) => {
   return (
     <div
-      className={`flex max-w-4xl ${
+      className={`flex w-full max-w-full ${
         message.isUser ? "self-end flex-row-reverse" : "self-start"
       }`}
     >
       <div
-        className={`p-4 rounded-2xl relative max-w-full break-words ${
+        className={`p-2 sm:p-3 md:p-4 rounded-2xl relative max-w-[85%] sm:max-w-[80%] md:max-w-full break-words ${
           message.isUser
             ? "bg-blue-500 text-white rounded-br-md"
             : message.isCompletionResult
@@ -37,7 +37,7 @@ export const Message: React.FC<MessageProps> = ({
           onSuggestionClick={onSuggestionClick}
         />
       </div>
-      <div className="text-xs text-white/60 mx-3 self-end whitespace-nowrap">
+      <div className="text-xs text-white/60 mx-2 sm:mx-3 self-end whitespace-nowrap">
         {message.timestamp}
       </div>
     </div>

@@ -3,11 +3,21 @@ import { ClineSay, ClineSayType } from "../types/cline";
 
 interface SayMessageRendererProps {
   say: ClineSay;
+  text?: string; // Additional text content that might be in the main message
 }
 
-export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say }) => {
+export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, text }) => {
   const renderSayContent = () => {
     switch (say.type) {
+      case "text":
+        return (
+          <div className="text-gray-700 dark:text-gray-300">
+            <div className="whitespace-pre-wrap break-words">
+              {say.text || text || ""}
+            </div>
+          </div>
+        );
+
       case "error":
         return (
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3">
@@ -306,7 +316,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say }) =
       default:
         return (
           <div className="text-gray-700 dark:text-gray-300">
-            {say.text || "Message"}
+            <div className="whitespace-pre-wrap break-words">
+              {say.text || "No message content"}
+            </div>
           </div>
         );
     }

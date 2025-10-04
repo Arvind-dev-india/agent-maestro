@@ -62,7 +62,10 @@ export const useEnhancedMessageHandler = ({
     if (data.tokenUsage) {
       updateTokenUsage(data.tokenUsage);
     }
-  }, [showStatusMessage, updateTokenUsage]);
+    
+    // Clear the current task ID when task is completed
+    setCurrentTaskId(null);
+  }, [showStatusMessage, updateTokenUsage, setCurrentTaskId]);
 
   const handleTaskTokenUsageUpdated = useCallback((data: any) => {
     if (data.tokenUsage) {
@@ -87,13 +90,22 @@ export const useEnhancedMessageHandler = ({
   // Enhanced message handler using ClineMessage parser
   const handleEnhancedMessage = useCallback(
     (data: any) => {
-      console.log(`🔍 [Enhanced Handler] Raw message data:`, JSON.stringify(data, null, 2));
-      
       const clineMessage = ClineMessageParser.parseMessage(data);
       if (!clineMessage) {
         console.warn(`⚠️ [Enhanced Handler] Failed to parse ClineMessage from data:`, data);
         return;
       }
+
+      const rawData = data; // Store reference to raw data for action checking
+      
+      console.log(`🔍 [Enhanced Handler] Processing message:`, {
+        action: rawData.action,
+        type: clineMessage.type,
+        sayType: clineMessage.say?.type,
+        askType: clineMessage.ask?.type,
+        hasText: !!clineMessage.text,
+        textLength: clineMessage.text?.length,
+      });
 
       console.log(`✅ [Enhanced Handler] Parsed ClineMessage:`, {
         type: clineMessage.type,
@@ -112,30 +124,38 @@ export const useEnhancedMessageHandler = ({
           const newAgentMessageId = uuidv4();
           currentAgentMessageId.current = newAgentMessageId;
           
+          // Initialize accumulated text with current text
+          accumulatedText.current = clineMessage.text || "";
+          
           const message = ClineMessageParser.toInternalMessage(clineMessage);
           message.id = newAgentMessageId;
+          // Use accumulated text for content
+          message.content = accumulatedText.current + (accumulatedText.current ? "" : "...");
           
           console.log(`📝 [Enhanced Handler] Creating new partial message:`, {
-            content: message.content.substring(0, 100) + "...",
+            content: message.content?.substring(0, 100) + "...",
             hasAsk: !!clineMessage.ask,
             hasSay: !!clineMessage.say,
           });
           
+          // Always add partial messages to start streaming
           addMessage(message);
           currentClineMessage.current = clineMessage;
         } else {
-          // Update existing message with new content - preserve streaming text
+          // Accumulate text properly - this is key for collecting all message data
+          accumulatedText.current = clineMessage.text || accumulatedText.current;
+          
           const message = ClineMessageParser.toInternalMessage(clineMessage);
           
           console.log(`📝 [Enhanced Handler] Updating partial message:`, {
             messageId: currentAgentMessageId.current,
-            newContentLength: message.content?.length,
+            accumulatedLength: accumulatedText.current.length,
             hasAsk: !!clineMessage.ask,
             hasSay: !!clineMessage.say,
           });
           
           updateMessage(currentAgentMessageId.current, {
-            content: message.content,
+            content: accumulatedText.current, // Use accumulated text
             reasoning: message.reasoning,
             images: message.images,
             clineMessage: clineMessage, // Include the ClineMessage for enhanced rendering
@@ -155,12 +175,23 @@ export const useEnhancedMessageHandler = ({
         askType: clineMessage.ask?.type,
         hasSay: !!clineMessage.say,
         sayType: clineMessage.say?.type,
+        messageContent: message.content?.substring(0, 100) + "...",
       });
+      
+      // Skip duplicate "created" actions - only process "updated" actions for messages
+      // This prevents duplicate messages in the UI
+      if (rawData.action === "created" && !clineMessage.ask) {
+        console.log(`🚫 [Enhanced Handler] Skipping "created" action for non-ask message`);
+        return;
+      }
       
       if (currentAgentMessageId.current) {
         // Update existing partial message with final content
+        // Use accumulated text if available, otherwise use message content
+        const finalContent = accumulatedText.current || message.content;
+        
         updateMessage(currentAgentMessageId.current, {
-          content: message.content,
+          content: finalContent,
           suggestions: message.suggestions,
           isCompletionResult: message.isCompletionResult,
           reasoning: message.reasoning,
@@ -168,9 +199,17 @@ export const useEnhancedMessageHandler = ({
           clineMessage: clineMessage, // Include the ClineMessage for enhanced rendering
         });
       } else {
-        // Create new message
-        message.id = uuidv4();
-        addMessage(message);
+        // Create new message only if it has content or is an ask/say message with substance
+        const hasContent = !!(message.content?.trim() || clineMessage.text?.trim());
+        const hasStructure = !!(clineMessage.ask || (clineMessage.say && clineMessage.say.type !== "text"));
+        
+        if (hasContent || hasStructure) {
+          message.id = uuidv4();
+          addMessage(message);
+        } else {
+          console.log(`🚫 [Enhanced Handler] Skipping empty message with no content or structure`);
+          return;
+        }
       }
 
       // Handle specific ask/say types
@@ -307,17 +346,13 @@ export const useEnhancedMessageHandler = ({
   // Main event handler dispatcher
   const handleEvent = useCallback(
     (eventType: string, data: any) => {
+      // Only log essential info, not full data dumps
       console.log(`🔥 [Enhanced Handler] Event: ${eventType}`, {
-        eventType,
         hasData: !!data,
         hasMessage: !!data?.message,
         messageType: data?.message?.type,
-        messageAsk: data?.message?.ask,
-        messageSay: data?.message?.say,
-        messageText: data?.message?.text ? `"${data?.message?.text.substring(0, 50)}..."` : null,
-        messagePartial: data?.message?.partial,
-        taskId: data?.taskId,
-        fullData: JSON.stringify(data, null, 2),
+        sayType: data?.message?.say,
+        askType: data?.message?.ask,
       });
 
       switch (eventType) {
@@ -356,6 +391,9 @@ export const useEnhancedMessageHandler = ({
   const handleTaskError = useCallback(() => {
     showStatusMessage(STATUS_MESSAGES.TASK_ERROR);
     setIsWaitingForResponse(false);
+    
+    // Clear the current task ID when task errors
+    setCurrentTaskId(null);
 
     if (!currentAgentMessageId.current) {
       const errorMessage = {
@@ -370,13 +408,16 @@ export const useEnhancedMessageHandler = ({
       addMessage(errorMessage);
     }
     focusTextarea();
-  }, [setIsWaitingForResponse, addMessage, focusTextarea, showStatusMessage]);
+  }, [setIsWaitingForResponse, addMessage, focusTextarea, showStatusMessage, setCurrentTaskId]);
 
   // Handle message stream end
   const handleMessageStreamEnd = useCallback(() => {
     setIsWaitingForResponse(false);
     focusTextarea();
     showStatusMessage(STATUS_MESSAGES.TASK_COMPLETED);
+    
+    // Don't clear currentTaskId here - let the task remain active for follow-up suggestions
+    // Only clear it on explicit completion events or errors
   }, [setIsWaitingForResponse, focusTextarea, showStatusMessage]);
 
   return {

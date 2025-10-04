@@ -174,23 +174,13 @@ export const useChat = () => {
           const { done, events } = await sseReader.read();
           if (done) break;
 
-          console.log(`🔄 [Chat] Processing ${events.length} SSE events`);
           for (const { event, data } of events) {
-            console.log(`🎯 [Chat] Dispatching event: ${event}`, data);
             messageHandler.handleEvent(event, data);
           }
         }
-        console.log(`🏁 [Chat] SSE stream completed`);
         messageHandler.handleMessageStreamEnd();
       } catch (error: any) {
-        console.error(`💥 [${new Date().toISOString()}] Chat error:`, {
-          error: error.message,
-          category: error.category,
-          userMessage: error.userMessage,
-          operation: error.operation,
-          taskId: error.taskId,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        });
+        console.error('Chat error:', error.message);
         
         chatState.setShowTyping(false);
         chatState.setIsWaitingForResponse(false);

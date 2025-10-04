@@ -14,6 +14,23 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
   onReject,
   onSuggestionClick,
 }) => {
+  // Common button layout for mobile responsiveness
+  const renderActionButtons = (approveText = "Approve", rejectText = "Reject") => (
+    <div className="ml-2 sm:ml-6 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+      <button
+        onClick={onApprove}
+        className="px-3 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+      >
+        {approveText}
+      </button>
+      <button
+        onClick={onReject}
+        className="px-3 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+      >
+        {rejectText}
+      </button>
+    </div>
+  );
   const renderAskContent = () => {
     switch (ask.type) {
       case "followup":
@@ -80,20 +97,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Approve
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Reject
-              </button>
-            </div>
+            {renderActionButtons()}
           </div>
         );
 
@@ -120,20 +124,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Execute
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            {renderActionButtons("Execute", "Cancel")}
           </div>
         );
 
@@ -162,20 +153,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Approve
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Reject
-              </button>
-            </div>
+            {renderActionButtons()}
           </div>
         );
 
@@ -200,20 +178,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Accept
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
-              >
-                Continue Working
-              </button>
-            </div>
+            {renderActionButtons("Accept", "Continue Working")}
           </div>
         );
 
@@ -236,20 +201,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                Retry
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-              >
-                Skip
-              </button>
-            </div>
+            {renderActionButtons("Retry", "Skip")}
           </div>
         );
 
@@ -277,20 +229,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 )}
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Allow
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Deny
-              </button>
-            </div>
+            {renderActionButtons("Allow", "Deny")}
           </div>
         );
 
@@ -306,20 +245,7 @@ export const AskMessageRenderer: React.FC<AskMessageRendererProps> = ({
                 </p>
               </div>
             </div>
-            <div className="ml-6 flex space-x-2">
-              <button
-                onClick={onApprove}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-              >
-                Approve
-              </button>
-              <button
-                onClick={onReject}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Reject
-              </button>
-            </div>
+            {renderActionButtons()}
           </div>
         );
     }

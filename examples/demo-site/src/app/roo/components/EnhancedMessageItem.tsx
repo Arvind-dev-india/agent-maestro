@@ -1,6 +1,8 @@
 import React from "react";
 import { AskMessageRenderer } from "./AskMessageRenderer";
 import { SayMessageRenderer } from "./SayMessageRenderer";
+import { MarkdownContent } from "./MarkdownContent";
+import { MessageSuggestions } from "./MessageSuggestions";
 import type { Message } from "../types/chat";
 
 interface EnhancedMessageItemProps {
@@ -20,12 +22,12 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
   const clineMessage = message.clineMessage;
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={`max-w-[80%] ${isUser ? "order-2" : "order-1"}`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-2 sm:mb-4`}>
+      <div className={`w-full max-w-[95%] sm:max-w-[90%] md:max-w-[85%] lg:max-w-[80%] xl:max-w-[75%] ${isUser ? "order-2" : "order-1"}`}>
         {/* User avatar */}
         {isUser && (
-          <div className="flex justify-end mb-2">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+          <div className="flex justify-end mb-1 sm:mb-2">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
               U
             </div>
           </div>
@@ -33,8 +35,8 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
 
         {/* Agent avatar */}
         {!isUser && (
-          <div className="flex justify-start mb-2">
-            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+          <div className="flex justify-start mb-1 sm:mb-2">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
               R
             </div>
           </div>
@@ -42,22 +44,15 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
 
         {/* Message content */}
         <div
-          className={`rounded-lg p-3 ${
+          className={`rounded-lg p-2 sm:p-3 text-sm sm:text-base ${
             isUser
-              ? "bg-blue-500 text-white ml-4"
-              : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 mr-4"
+              ? "bg-blue-500 text-white ml-1 sm:ml-2 md:ml-4"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 mr-1 sm:mr-2 md:mr-4"
           }`}
         >
           {/* Enhanced rendering for ClineMessage */}
           {clineMessage ? (
             <div className="space-y-3">
-              {/* Show original text content if available */}
-              {clineMessage.text && (
-                <div className="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">
-                  {clineMessage.text}
-                </div>
-              )}
-
               {/* Render ask message */}
               {clineMessage.ask && (
                 <AskMessageRenderer
@@ -70,7 +65,26 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
 
               {/* Render say message */}
               {clineMessage.say && (
-                <SayMessageRenderer say={clineMessage.say} />
+                <SayMessageRenderer 
+                  say={clineMessage.say} 
+                  text={clineMessage.text || message.content} 
+                />
+              )}
+
+              {/* Show main message content when no ask/say, or when we have text content to display */}
+              {(!clineMessage.ask && !clineMessage.say) && (message.content || clineMessage.text) && (
+                <MarkdownContent
+                  content={message.content || clineMessage.text || ""}
+                  className="leading-relaxed"
+                />
+              )}
+
+              {/* Show suggestions for enhanced messages */}
+              {message.suggestions && message.suggestions.length > 0 && (
+                <MessageSuggestions
+                  suggestions={message.suggestions}
+                  onSuggestionClick={onSuggestionClick}
+                />
               )}
 
               {/* Render reasoning if available */}
@@ -161,9 +175,10 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
             /* Fallback to original message rendering */
             <div className="space-y-3">
               {/* Message content */}
-              <div className="whitespace-pre-wrap break-words">
-                {message.content}
-              </div>
+              <MarkdownContent
+                content={message.content}
+                className="leading-relaxed"
+              />
 
               {/* Completion result indicator */}
               {message.isCompletionResult && (
@@ -199,37 +214,28 @@ export const EnhancedMessageItem: React.FC<EnhancedMessageItemProps> = ({
               )}
 
               {/* Suggestions */}
-              {message.suggestions && message.suggestions.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {message.suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onSuggestionClick?.(suggestion)}
-                      className="block w-full text-left p-2 bg-white/10 rounded border border-white/20 hover:bg-white/20 transition-colors"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <MessageSuggestions
+                suggestions={message.suggestions || []}
+                onSuggestionClick={onSuggestionClick}
+              />
             </div>
           )}
 
           {/* Timestamp */}
-          <div className={`text-xs mt-2 ${isUser ? "text-blue-100" : "text-gray-500"}`}>
+          <div className={`text-xs mt-2 ${isUser ? "text-blue-100" : "text-gray-500"} text-right sm:text-left`}>
             {message.timestamp}
           </div>
         </div>
 
         {/* Tool failures */}
         {message.toolFailures && message.toolFailures.length > 0 && (
-          <div className="mt-2 mr-4">
+          <div className="mt-2 mr-2 sm:mr-4">
             {message.toolFailures.map((failure, index) => (
               <div key={index} className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded p-2 text-sm">
-                <div className="font-semibold text-red-800 dark:text-red-200">
+                <div className="font-semibold text-red-800 dark:text-red-200 text-xs sm:text-sm">
                   Tool Failed: {failure.toolName}
                 </div>
-                <div className="text-red-600 dark:text-red-400 mt-1">
+                <div className="text-red-600 dark:text-red-400 mt-1 text-xs sm:text-sm">
                   {failure.error}
                 </div>
                 <div className="text-xs text-red-500 dark:text-red-400 mt-1">

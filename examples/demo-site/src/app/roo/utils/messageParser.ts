@@ -107,20 +107,30 @@ export class ClineMessageParser {
 
     if (!text) return ask;
 
+    // Handle followup differently - it's often plain text, not JSON
+    if (askType === "followup") {
+      // Try to parse as JSON first, if it fails treat as plain text
+      try {
+        const parsedText = JSON.parse(text);
+        ask.question = parsedText.question || text;
+        if (parsedText.suggest && Array.isArray(parsedText.suggest)) {
+          ask.suggest = parsedText.suggest.map((s: any) => ({
+            answer: typeof s === "string" ? s : s.answer || s,
+            description: s.description,
+            mode: s.mode,
+          }));
+        }
+      } catch {
+        // If JSON parsing fails, treat as plain text
+        ask.question = text;
+      }
+      return ask;
+    }
+
     try {
       const parsedText = JSON.parse(text);
 
       switch (askType) {
-        case "followup":
-          ask.question = parsedText.question || text;
-          if (parsedText.suggest && Array.isArray(parsedText.suggest)) {
-            ask.suggest = parsedText.suggest.map((s: any) => ({
-              answer: typeof s === "string" ? s : s.answer || s,
-              description: s.description,
-            }));
-          }
-          break;
-
         case "tool":
           // Handle different formats for tool arguments
           let toolName = parsedText.name || parsedText.tool || parsedText.toolName || "unknown";
@@ -221,6 +231,12 @@ export class ClineMessageParser {
     };
 
     if (!text) return say;
+
+    // Handle plain text messages without JSON parsing
+    if (sayType === "text") {
+      say.text = text;
+      return say;
+    }
 
     try {
       const parsedText = JSON.parse(text);
@@ -346,6 +362,15 @@ export class ClineMessageParser {
       message.images = clineMessage.images;
     }
 
+    console.log(`[MessageParser] toInternalMessage result:`, {
+      hasContent: !!message.content,
+      contentLength: message.content?.length,
+      contentPreview: message.content?.substring(0, 50) + "...",
+      hasAsk: !!clineMessage.ask,
+      hasSay: !!clineMessage.say,
+      sayType: clineMessage.say?.type
+    });
+
     return message;
   }
 
@@ -353,12 +378,17 @@ export class ClineMessageParser {
    * Format message content based on type and content
    */
   private static formatMessageContent(clineMessage: ClineMessage): string {
-    // Handle ask messages
+    // For say messages with text type, return the text directly (no JSON parsing)
+    if (clineMessage.say?.type === "text" && clineMessage.text) {
+      return clineMessage.text;
+    }
+
+    // Handle ask messages (these might contain JSON)
     if (clineMessage.ask) {
       return this.formatAskContent(clineMessage.ask, clineMessage.text);
     }
 
-    // Handle say messages
+    // Handle other say messages (these might contain JSON)
     if (clineMessage.say) {
       return this.formatSayContent(clineMessage.say, clineMessage.text);
     }
@@ -377,7 +407,7 @@ export class ClineMessageParser {
 
       case "tool":
         if (ask.tool) {
-          return `🔧 **Tool Request: ${ask.tool.name}**\n\n${ask.tool.description || "Do you want to execute this tool?"}\n\nArguments: \`${JSON.stringify(ask.tool.arguments)}\``;
+          return `🔧 Tool Request: ${ask.tool.name}\n\n${ask.tool.description || "Do you want to execute this tool?"}`;
         }
         return text || "Tool execution request";
 
@@ -473,7 +503,12 @@ export class ClineMessageParser {
       case "condense_context_error":
         return `❌ **Context Condensation Failed**\n\n${text || "Failed to condense context"}`;
 
+      case "text":
+        // For text messages, return the actual text content directly
+        return say.text || text || "";
+
       default:
+        // For other messages, return structured content or fallback to text
         return say.text || text || "";
     }
   }
