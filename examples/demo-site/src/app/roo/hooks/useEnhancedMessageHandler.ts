@@ -1,9 +1,12 @@
 import { useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { ClineMessageParser } from "../utils/messageParser";
-import { ClineMessage, ClineAskType, ClineSayType } from "../types/cline";
+
+import { useTaskState } from "../contexts/TaskStateContext";
 import type { Message, TokenUsage, ToolFailure } from "../types/chat";
+import { ClineAskType, ClineMessage, ClineSayType } from "../types/cline";
+import type { TaskStatus } from "../types/task";
 import { RooCodeEventName, STATUS_MESSAGES } from "../utils/constants";
+import { ClineMessageParser } from "../utils/messageParser";
 
 interface UseEnhancedMessageHandlerProps {
   addMessage: (message: Message) => void;
@@ -28,6 +31,7 @@ export const useEnhancedMessageHandler = ({
   updateTokenUsage,
   addToolFailure,
 }: UseEnhancedMessageHandlerProps) => {
+  const { updateTask, updateTaskStatus } = useTaskState();
   const currentAgentMessageId = useRef<string | null>(null);
   const accumulatedText = useRef<string>("");
   const currentClineMessage = useRef<ClineMessage | null>(null);
@@ -43,63 +47,87 @@ export const useEnhancedMessageHandler = ({
     (data: any) => {
       if (data.taskId) {
         setCurrentTaskId(data.taskId);
+        updateTaskStatus(data.taskId, "created");
         showStatusMessage(STATUS_MESSAGES.TASK_CREATED);
       }
     },
-    [setCurrentTaskId, showStatusMessage],
+    [setCurrentTaskId, showStatusMessage, updateTaskStatus],
   );
 
-  const handleTaskResumed = useCallback(
+  const handleTaskCompleted = useCallback(
     (data: any) => {
+      showStatusMessage(STATUS_MESSAGES.FINALIZING);
+
       if (data.taskId) {
-        showStatusMessage(STATUS_MESSAGES.TASK_RESUMED);
+        updateTask({
+          id: data.taskId,
+          status: "completed",
+          tokenUsage: data.tokenUsage,
+          toolUsage: data.toolUsage,
+        });
+
+        if (data.tokenUsage) {
+          updateTokenUsage(data.tokenUsage);
+        }
       }
     },
-    [showStatusMessage],
+    [showStatusMessage, updateTokenUsage, updateTask],
   );
 
-  const handleTaskCompleted = useCallback((data: any) => {
-    showStatusMessage(STATUS_MESSAGES.FINALIZING);
-    
-    if (data.tokenUsage) {
-      updateTokenUsage(data.tokenUsage);
-    }
-    
-    // Clear the current task ID when task is completed
-    setCurrentTaskId(null);
-  }, [showStatusMessage, updateTokenUsage, setCurrentTaskId]);
+  const handleTaskTokenUsageUpdated = useCallback(
+    (data: any) => {
+      if (data.tokenUsage && data.taskId) {
+        updateTokenUsage(data.tokenUsage);
+        updateTask({
+          id: data.taskId,
+          tokenUsage: data.tokenUsage,
+        });
+      }
+    },
+    [updateTokenUsage, updateTask],
+  );
 
-  const handleTaskTokenUsageUpdated = useCallback((data: any) => {
-    if (data.tokenUsage) {
-      updateTokenUsage(data.tokenUsage);
-    }
-  }, [updateTokenUsage]);
+  const handleTaskToolFailed = useCallback(
+    (data: any) => {
+      if (data.taskId && data.tool && data.error) {
+        const toolFailure: ToolFailure = {
+          taskId: data.taskId,
+          toolName: data.tool,
+          error: data.error,
+          timestamp: Date.now(),
+        };
+        addToolFailure(toolFailure);
 
-  const handleTaskToolFailed = useCallback((data: any) => {
-    if (data.taskId && data.tool && data.error) {
-      const toolFailure: ToolFailure = {
-        taskId: data.taskId,
-        toolName: data.tool,
-        error: data.error,
-        timestamp: Date.now(),
-      };
-      addToolFailure(toolFailure);
-      
-      showStatusMessage(`Tool failed: ${data.tool}`);
-    }
-  }, [addToolFailure, showStatusMessage]);
+        // Update task state with tool failure
+        updateTask({
+          id: data.taskId,
+          error: {
+            message: data.error,
+            toolName: data.tool,
+            recoverable: true, // Tool failures are generally recoverable
+          },
+        });
+
+        showStatusMessage(`Tool failed: ${data.tool}`);
+      }
+    },
+    [addToolFailure, showStatusMessage, updateTask],
+  );
 
   // Enhanced message handler using ClineMessage parser
   const handleEnhancedMessage = useCallback(
     (data: any) => {
       const clineMessage = ClineMessageParser.parseMessage(data);
       if (!clineMessage) {
-        console.warn(`⚠️ [Enhanced Handler] Failed to parse ClineMessage from data:`, data);
+        console.warn(
+          `⚠️ [Enhanced Handler] Failed to parse ClineMessage from data:`,
+          data,
+        );
         return;
       }
 
       const rawData = data; // Store reference to raw data for action checking
-      
+
       console.log(`🔍 [Enhanced Handler] Processing message:`, {
         action: rawData.action,
         type: clineMessage.type,
@@ -125,37 +153,39 @@ export const useEnhancedMessageHandler = ({
         if (!currentAgentMessageId.current) {
           const newAgentMessageId = uuidv4();
           currentAgentMessageId.current = newAgentMessageId;
-          
+
           // Initialize accumulated text with current text
           accumulatedText.current = clineMessage.text || "";
-          
+
           const message = ClineMessageParser.toInternalMessage(clineMessage);
           message.id = newAgentMessageId;
           // Use accumulated text for content
-          message.content = accumulatedText.current + (accumulatedText.current ? "" : "...");
-          
+          message.content =
+            accumulatedText.current + (accumulatedText.current ? "" : "...");
+
           console.log(`📝 [Enhanced Handler] Creating new partial message:`, {
             content: message.content?.substring(0, 100) + "...",
             hasAsk: !!clineMessage.ask,
             hasSay: !!clineMessage.say,
           });
-          
+
           // Always add partial messages to start streaming
           addMessage(message);
           currentClineMessage.current = clineMessage;
         } else {
           // Accumulate text properly - this is key for collecting all message data
-          accumulatedText.current = clineMessage.text || accumulatedText.current;
-          
+          accumulatedText.current =
+            clineMessage.text || accumulatedText.current;
+
           const message = ClineMessageParser.toInternalMessage(clineMessage);
-          
+
           console.log(`📝 [Enhanced Handler] Updating partial message:`, {
             messageId: currentAgentMessageId.current,
             accumulatedLength: accumulatedText.current.length,
             hasAsk: !!clineMessage.ask,
             hasSay: !!clineMessage.say,
           });
-          
+
           updateMessage(currentAgentMessageId.current, {
             content: accumulatedText.current, // Use accumulated text
             reasoning: message.reasoning,
@@ -169,7 +199,7 @@ export const useEnhancedMessageHandler = ({
 
       // Handle complete messages
       const message = ClineMessageParser.toInternalMessage(clineMessage);
-      
+
       console.log(`🏁 [Enhanced Handler] Processing complete message:`, {
         hasExistingMessage: !!currentAgentMessageId.current,
         finalContentLength: message.content?.length,
@@ -179,19 +209,21 @@ export const useEnhancedMessageHandler = ({
         sayType: clineMessage.say?.type,
         messageContent: message.content?.substring(0, 100) + "...",
       });
-      
+
       // Skip duplicate "created" actions - only process "updated" actions for messages
       // This prevents duplicate messages in the UI
       if (rawData.action === "created" && !clineMessage.ask) {
-        console.log(`🚫 [Enhanced Handler] Skipping "created" action for non-ask message`);
+        console.log(
+          `🚫 [Enhanced Handler] Skipping "created" action for non-ask message`,
+        );
         return;
       }
-      
+
       if (currentAgentMessageId.current) {
         // Update existing partial message with final content
         // Use accumulated text if available, otherwise use message content
         const finalContent = accumulatedText.current || message.content;
-        
+
         // Get existing message to merge clineMessage properly
         let mergedClineMessage = clineMessage;
         if (getMessageById && currentAgentMessageId.current) {
@@ -206,7 +238,7 @@ export const useEnhancedMessageHandler = ({
               ask: clineMessage.ask || existingMessage.clineMessage.ask,
               text: clineMessage.text || existingMessage.clineMessage.text,
             };
-            
+
             console.log(`🔄 [Enhanced Handler] Merging clineMessage:`, {
               existingSay: !!existingMessage.clineMessage.say,
               existingAsk: !!existingMessage.clineMessage.ask,
@@ -217,7 +249,7 @@ export const useEnhancedMessageHandler = ({
             });
           }
         }
-        
+
         updateMessage(currentAgentMessageId.current, {
           content: finalContent,
           suggestions: message.suggestions,
@@ -228,24 +260,35 @@ export const useEnhancedMessageHandler = ({
         });
       } else {
         // Create new message only if it has content or is an ask/say message with substance
-        const hasContent = !!(message.content?.trim() || clineMessage.text?.trim());
-        const hasStructure = !!(clineMessage.ask || (clineMessage.say && clineMessage.say.type !== "text"));
-        
+        const hasContent = !!(
+          message.content?.trim() || clineMessage.text?.trim()
+        );
+        const hasStructure = !!(
+          clineMessage.ask ||
+          (clineMessage.say && clineMessage.say.type !== "text")
+        );
+
         if (hasContent || hasStructure) {
           message.id = uuidv4();
           addMessage(message);
         } else {
-          console.log(`🚫 [Enhanced Handler] Skipping empty message with no content or structure`);
+          console.log(
+            `🚫 [Enhanced Handler] Skipping empty message with no content or structure`,
+          );
           return;
         }
       }
 
       // Handle specific ask/say types
       if (clineMessage.ask) {
-        console.log(`🤔 [Enhanced Handler] Handling ask message: ${clineMessage.ask.type}`);
+        console.log(
+          `🤔 [Enhanced Handler] Handling ask message: ${clineMessage.ask.type}`,
+        );
         handleAskMessage(clineMessage.ask, clineMessage);
       } else if (clineMessage.say) {
-        console.log(`💬 [Enhanced Handler] Handling say message: ${clineMessage.say.type}`);
+        console.log(
+          `💬 [Enhanced Handler] Handling say message: ${clineMessage.say.type}`,
+        );
         handleSayMessage(clineMessage.say, clineMessage);
       }
 
@@ -264,112 +307,190 @@ export const useEnhancedMessageHandler = ({
   );
 
   // Handle specific ask message types
-  const handleAskMessage = useCallback((ask: any, clineMessage: ClineMessage) => {
-    switch (ask.type as ClineAskType) {
-      case "command":
-        showStatusMessage("⚠️ Command execution requires approval");
-        break;
-      
-      case "tool":
-        showStatusMessage("⚠️ Tool usage requires approval");
-        break;
-      
-      case "use_mcp_server":
-        showStatusMessage("⚠️ MCP server access requires approval");
-        break;
-      
-      case "api_req_failed":
-        showStatusMessage("❌ API request failed - retry confirmation needed");
-        break;
-      
-      case "browser_action_launch":
-        showStatusMessage("🌐 Browser action requires approval");
-        break;
-      
-      case "completion_result":
-        showStatusMessage("✅ Task completion confirmation needed");
-        break;
-      
-      case "mistake_limit_reached":
-        showStatusMessage("⚠️ Error limit reached - guidance needed");
-        break;
-      
-      case "auto_approval_max_req_reached":
-        showStatusMessage("⚠️ Auto-approval limit reached - manual confirmation needed");
-        break;
-      
-      default:
-        break;
-    }
-  }, [showStatusMessage]);
+  const handleAskMessage = useCallback(
+    (ask: any) => {
+      switch (ask.type as ClineAskType) {
+        case "command":
+          showStatusMessage("⚠️ Command execution requires approval");
+          break;
+
+        case "tool":
+          showStatusMessage("⚠️ Tool usage requires approval");
+          break;
+
+        case "use_mcp_server":
+          showStatusMessage("⚠️ MCP server access requires approval");
+          break;
+
+        case "api_req_failed":
+          showStatusMessage(
+            "❌ API request failed - retry confirmation needed",
+          );
+          break;
+
+        case "browser_action_launch":
+          showStatusMessage("🌐 Browser action requires approval");
+          break;
+
+        case "completion_result":
+          showStatusMessage("✅ Task completion confirmation needed");
+          break;
+
+        case "mistake_limit_reached":
+          showStatusMessage("⚠️ Error limit reached - guidance needed");
+          break;
+
+        case "auto_approval_max_req_reached":
+          showStatusMessage(
+            "⚠️ Auto-approval limit reached - manual confirmation needed",
+          );
+          break;
+
+        default:
+          break;
+      }
+    },
+    [showStatusMessage],
+  );
 
   // Handle specific say message types
-  const handleSayMessage = useCallback((say: any, clineMessage: ClineMessage) => {
-    switch (say.type as ClineSayType) {
-      case "error":
-        showStatusMessage("❌ Error occurred");
-        break;
-      
-      case "api_req_started":
-        showStatusMessage("🔄 API request started");
-        break;
-      
-      case "api_req_finished":
-        showStatusMessage("✅ API request completed");
-        break;
-      
-      case "api_req_retried":
-        showStatusMessage("🔄 API request retried");
-        break;
-      
-      case "command_output":
-        showStatusMessage("💻 Command executed");
-        break;
-      
-      case "browser_action_result":
-        showStatusMessage("🌐 Browser action completed");
-        break;
-      
-      case "mcp_server_response":
-        showStatusMessage("🔧 MCP server responded");
-        break;
-      
-      case "codebase_search_result":
-        showStatusMessage("🔍 Codebase search completed");
-        break;
-      
-      case "checkpoint_saved":
-        showStatusMessage("💾 Checkpoint saved");
-        break;
-      
-      case "condense_context":
-        showStatusMessage("🗜️ Context condensation started");
-        break;
-      
-      case "condense_context_error":
-        showStatusMessage("❌ Context condensation failed");
-        break;
-      
-      case "subtask_result":
-        showStatusMessage("✅ Subtask completed");
-        break;
-      
-      case "shell_integration_warning":
-        showStatusMessage("⚠️ Shell integration warning");
-        break;
-      
-      case "rooignore_error":
-        showStatusMessage("⚠️ .rooignore processing error");
-        break;
-      
-      case "diff_error":
-        showStatusMessage("❌ Diff application error");
-        break;
-      
-      default:
-        break;
-    }
-  }, [showStatusMessage]);
+  const handleSayMessage = useCallback(
+    (say: any) => {
+      switch (say.type as ClineSayType) {
+        case "error":
+          showStatusMessage("❌ Error occurred");
+          break;
+
+        case "api_req_started":
+          showStatusMessage("🔄 API request started");
+          break;
+
+        case "api_req_finished":
+          showStatusMessage("✅ API request completed");
+          break;
+
+        case "api_req_retried":
+          showStatusMessage("🔄 API request retried");
+          break;
+
+        case "command_output":
+          showStatusMessage("💻 Command executed");
+          break;
+
+        case "browser_action_result":
+          showStatusMessage("🌐 Browser action completed");
+          break;
+
+        case "mcp_server_response":
+          showStatusMessage("🔧 MCP server responded");
+          break;
+
+        case "codebase_search_result":
+          showStatusMessage("🔍 Codebase search completed");
+          break;
+
+        case "checkpoint_saved":
+          showStatusMessage("💾 Checkpoint saved");
+          break;
+
+        case "condense_context":
+          showStatusMessage("🗜️ Context condensation started");
+          break;
+
+        case "condense_context_error":
+          showStatusMessage("❌ Context condensation failed");
+          break;
+
+        case "subtask_result":
+          showStatusMessage("✅ Subtask completed");
+          break;
+
+        case "shell_integration_warning":
+          showStatusMessage("⚠️ Shell integration warning");
+          break;
+
+        case "rooignore_error":
+          showStatusMessage("⚠️ .rooignore processing error");
+          break;
+
+        case "diff_error":
+          showStatusMessage("❌ Diff application error");
+          break;
+
+        default:
+          break;
+      }
+    },
+    [showStatusMessage],
+  );
+
+  // Handle task aborted event
+  const handleTaskAborted = useCallback(
+    (data: any) => {
+      showStatusMessage(STATUS_MESSAGES.TASK_ERROR);
+      setIsWaitingForResponse(false);
+
+      // As per docs, task aborted event provides taskId
+      const abortedTaskId = data.taskId;
+
+      if (!abortedTaskId) {
+        console.warn("[Enhanced Handler] Task aborted without taskId");
+        return;
+      }
+
+      // Update task state to aborted
+      updateTaskStatus(abortedTaskId, "aborted", {
+        message: "Task was cancelled or aborted",
+        recoverable: true, // Allow restart
+      });
+
+      // Add message to inform user and provide restart option
+      const message: Message = {
+        id: uuidv4(),
+        isUser: false,
+        content: "Task was cancelled or aborted. Would you like to restart it?",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        suggestions: ["Restart task", "Create new task"],
+        clineMessage: {
+          ts: Date.now(),
+          type: "ask",
+          ask: {
+            type: "followup",
+            question: "Would you like to restart the task?",
+            suggest: [
+              { answer: "Yes, restart the task" },
+              { answer: "No, create a new task" },
+            ],
+          },
+        },
+      };
+
+      addMessage(message);
+      setCurrentTaskId(null); // Clear task ID as the stream will close
+      focusTextarea();
+    },
+    [
+      setIsWaitingForResponse,
+      addMessage,
+      focusTextarea,
+      showStatusMessage,
+      setCurrentTaskId,
+      updateTaskStatus,
+    ],
+  );
+
+  // Handle message stream end
+  const handleMessageStreamEnd = useCallback(() => {
+    setIsWaitingForResponse(false);
+    focusTextarea();
+    showStatusMessage(STATUS_MESSAGES.TASK_COMPLETED);
+
+    // Don't clear currentTaskId here - let the task remain active for follow-up suggestions
+    // Only clear it on explicit completion events or errors
+  }, [setIsWaitingForResponse, focusTextarea, showStatusMessage]);
 
   // Main event handler dispatcher
   const handleEvent = useCallback(
@@ -400,7 +521,7 @@ export const useEnhancedMessageHandler = ({
           handleEnhancedMessage(data);
           break;
         case RooCodeEventName.TaskAborted:
-          handleTaskError();
+          handleTaskAborted(data);
           break;
         default:
           console.log(`[Enhanced Handler] Unhandled event type: ${eventType}`);
@@ -412,41 +533,9 @@ export const useEnhancedMessageHandler = ({
       handleTaskTokenUsageUpdated,
       handleTaskToolFailed,
       handleEnhancedMessage,
+      handleTaskAborted,
     ],
   );
-
-  // Handle task errors
-  const handleTaskError = useCallback(() => {
-    showStatusMessage(STATUS_MESSAGES.TASK_ERROR);
-    setIsWaitingForResponse(false);
-    
-    // Clear the current task ID when task errors
-    setCurrentTaskId(null);
-
-    if (!currentAgentMessageId.current) {
-      const errorMessage = {
-        id: uuidv4(),
-        content: "Sorry, there was an error processing your request.",
-        isUser: false,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      addMessage(errorMessage);
-    }
-    focusTextarea();
-  }, [setIsWaitingForResponse, addMessage, focusTextarea, showStatusMessage, setCurrentTaskId]);
-
-  // Handle message stream end
-  const handleMessageStreamEnd = useCallback(() => {
-    setIsWaitingForResponse(false);
-    focusTextarea();
-    showStatusMessage(STATUS_MESSAGES.TASK_COMPLETED);
-    
-    // Don't clear currentTaskId here - let the task remain active for follow-up suggestions
-    // Only clear it on explicit completion events or errors
-  }, [setIsWaitingForResponse, focusTextarea, showStatusMessage]);
 
   return {
     handleEvent,

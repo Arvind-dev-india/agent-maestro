@@ -3,11 +3,16 @@ import React, { useState } from "react";
 import type { Message as MessageType } from "../types/chat";
 import { MarkdownContent } from "./MarkdownContent";
 import { MessageSuggestions } from "./MessageSuggestions";
+import { TaskDisplay } from "./TaskDisplay";
+import { TaskStatusDisplay } from "./TaskStatusDisplay";
 import ToolOperationDisplay from "./ToolOperationDisplay";
 
 interface EnhancedMessageProps {
   message: MessageType;
   onSuggestionClick: (suggestion: string) => void;
+  taskId?: string;
+  parentTaskId?: string;
+  subtasks?: Array<{ id: string; status: string; description: string }>;
 }
 
 export const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
@@ -304,6 +309,9 @@ export const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
         {/* Enhanced content rendering */}
         {isParsed && data && !showRawContent ? (
           <div>
+            {message.clineMessage?.taskId && (
+              <TaskStatusDisplay taskId={message.clineMessage.taskId} />
+            )}
             {renderStructuredContent(data)}
             {!message.isUser && (
               <button

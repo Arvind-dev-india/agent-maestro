@@ -14,6 +14,8 @@ export interface ClineMessage {
   progressStatus?: ToolProgressStatus;
   contextCondense?: ContextCondense;
   isProtected?: boolean;
+  taskId?: string;
+  parentTaskId?: string;
 }
 
 // ClineAsk Types (12 types from documentation)
@@ -35,7 +37,7 @@ export type ClineAskType =
 export type ClineSayType =
   | "error"
   | "api_req_started"
-  | "api_req_finished" 
+  | "api_req_finished"
   | "api_req_retried"
   | "api_req_retry_delayed"
   | "api_req_deleted"

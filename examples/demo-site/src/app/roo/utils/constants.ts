@@ -2,45 +2,48 @@
 const getConfig = () => {
   if (typeof window !== "undefined") {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     // Check for development mode
     if (urlParams.has("isDev")) {
       return {
         apiBaseUrl: "http://localhost:33333/api/v1",
-        fullApiUrl: "http://localhost:33333/api/v1/roo"
+        fullApiUrl: "http://localhost:33333/api/v1/roo",
       };
     }
-    
+
     // Determine if we're accessing via Tailscale (100.x.x.x) or localhost
     const hostname = window.location.hostname;
-    
-    if (hostname.startsWith('100.')) {
+
+    if (hostname.startsWith("100.")) {
       // Accessing via Tailscale - need to proxy through the container
       return {
         apiBaseUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy`,
-        fullApiUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy/roo`
+        fullApiUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy/roo`,
       };
     } else {
       // Accessing via localhost - direct connection to VS Code
       return {
-        apiBaseUrl: "http://localhost:23333/api/v1", 
-        fullApiUrl: "http://localhost:23333/api/v1/roo"
+        apiBaseUrl: "http://localhost:23333/api/v1",
+        fullApiUrl: "http://localhost:23333/api/v1/roo",
       };
     }
   }
-  
+
   // Server-side: use environment variables or defaults
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://host.docker.internal:23333/api/v1";
-  
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "http://host.docker.internal:23333/api/v1";
+
   return {
     apiBaseUrl: apiBaseUrl.replace("/roo", ""),
-    fullApiUrl: apiBaseUrl.includes("/roo") ? apiBaseUrl : `${apiBaseUrl}/roo`
+    fullApiUrl: apiBaseUrl.includes("/roo") ? apiBaseUrl : `${apiBaseUrl}/roo`,
   };
 };
 
 const config = getConfig();
 export const API_BASE_URL = config.fullApiUrl || `${config.apiBaseUrl}/roo`;
-const INFO_API_BASE_URL = config.apiBaseUrl || config.fullApiUrl?.replace("/roo", "");
+const INFO_API_BASE_URL =
+  config.apiBaseUrl || config.fullApiUrl?.replace("/roo", "");
 
 export const API_ENDPOINTS = {
   TASK: `${API_BASE_URL}/task`,
@@ -72,6 +75,18 @@ export const STATUS_MESSAGES = {
   REJECTED: "Request rejected!",
   ERROR_PROCESSING: "Error processing request",
   FINALIZING: "Response completed! Finalizing...",
+  // Enhanced SSE status messages
+  CONNECTION_LOST: "Connection lost - automatic recovery in progress",
+  RECONNECTING: "Reconnecting to server...",
+  RECONNECTED: "Connection restored - resuming from last message",
+  RETRY_ATTEMPT: "Retry attempt {attempt} of {max}...",
+  RECOVERING: "Recovering interrupted session...",
+  HEALTH_CHECK_FAILED: "Connection health check failed - initiating recovery",
+  HEALTH_RESTORED: "Connection health restored - continuing normally",
+  PARTIAL_SAVE: "Saving partial response - will resume when reconnected",
+  RESUME_SUCCESS: "Successfully resumed from interruption",
+  STATE_PRESERVED: "Message state preserved - continuing from last point",
+  RATE_LIMITED: "Rate limited - automatic retry in {seconds} seconds",
 } as const;
 
 export const MESSAGE_TYPES = {
