@@ -1,20 +1,26 @@
 import React from "react";
+
 import { ClineSay, ClineSayType } from "../types/cline";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface SayMessageRendererProps {
   say: ClineSay;
   text?: string; // Additional text content that might be in the main message
 }
 
-export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, text }) => {
+export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({
+  say,
+  text,
+}) => {
   const renderSayContent = () => {
     switch (say.type) {
       case "text":
         return (
           <div className="text-gray-700 dark:text-gray-300">
-            <div className="whitespace-pre-wrap break-words">
-              {say.text || text || ""}
-            </div>
+            <MarkdownContent
+              content={say.text || text || ""}
+              className="leading-relaxed"
+            />
           </div>
         );
 
@@ -24,10 +30,14 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-start space-x-2">
               <span className="text-red-500 text-lg">❌</span>
               <div className="flex-1">
-                <h4 className="font-semibold text-red-700 dark:text-red-300">Error</h4>
+                <h4 className="font-semibold text-red-700 dark:text-red-300">
+                  Error
+                </h4>
                 {say.error && (
                   <div className="mt-2 space-y-1">
-                    <p className="text-red-800 dark:text-red-200">{say.error.message}</p>
+                    <p className="text-red-800 dark:text-red-200">
+                      {say.error.message}
+                    </p>
                     {say.error.code && (
                       <div className="text-sm text-red-600 dark:text-red-400">
                         Code: {say.error.code}
@@ -51,7 +61,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-blue-500 text-lg">🔄</span>
               <div>
-                <h4 className="font-semibold text-blue-700 dark:text-blue-300">API Request Started</h4>
+                <h4 className="font-semibold text-blue-700 dark:text-blue-300">
+                  API Request Started
+                </h4>
                 {say.apiRequest?.endpoint && (
                   <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">
                     {say.apiRequest.method} {say.apiRequest.endpoint}
@@ -68,7 +80,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-green-500 text-lg">✅</span>
               <div>
-                <h4 className="font-semibold text-green-700 dark:text-green-300">API Request Completed</h4>
+                <h4 className="font-semibold text-green-700 dark:text-green-300">
+                  API Request Completed
+                </h4>
                 {say.apiRequest?.status && (
                   <div className="text-sm text-green-600 dark:text-green-400 mt-1">
                     Status: {say.apiRequest.status}
@@ -85,7 +99,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-yellow-500 text-lg">🔄</span>
               <div>
-                <h4 className="font-semibold text-yellow-700 dark:text-yellow-300">API Request Retried</h4>
+                <h4 className="font-semibold text-yellow-700 dark:text-yellow-300">
+                  API Request Retried
+                </h4>
                 {say.apiRequest?.retryCount && (
                   <div className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
                     Retry attempt: {say.apiRequest.retryCount}
@@ -102,7 +118,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-start space-x-2">
               <span className="text-gray-500 text-lg">💻</span>
               <div className="flex-1">
-                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Command Output</h4>
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300">
+                  Command Output
+                </h4>
                 <pre className="mt-2 text-sm bg-black text-green-400 p-3 rounded overflow-x-auto">
                   {say.text || "No output"}
                 </pre>
@@ -113,29 +131,36 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
 
       case "browser_action_result":
         return (
-          <div className={`border rounded-lg p-3 ${
-            say.browserResult?.success 
-              ? "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700"
-              : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700"
-          }`}>
+          <div
+            className={`border rounded-lg p-3 ${
+              say.browserResult?.success
+                ? "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700"
+                : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700"
+            }`}
+          >
             <div className="flex items-start space-x-2">
               <span className="text-lg">
                 {say.browserResult?.success ? "🌐✅" : "🌐❌"}
               </span>
               <div className="flex-1">
-                <h4 className={`font-semibold ${
-                  say.browserResult?.success 
-                    ? "text-green-700 dark:text-green-300"
-                    : "text-red-700 dark:text-red-300"
-                }`}>
+                <h4
+                  className={`font-semibold ${
+                    say.browserResult?.success
+                      ? "text-green-700 dark:text-green-300"
+                      : "text-red-700 dark:text-red-300"
+                  }`}
+                >
                   Browser Action Result
                 </h4>
                 {say.browserResult && (
                   <div className="mt-2 space-y-2">
                     <div className="text-sm">
-                      <div><span className="font-medium">Action:</span> {say.browserResult.action}</div>
                       <div>
-                        <span className="font-medium">Status:</span> 
+                        <span className="font-medium">Action:</span>{" "}
+                        {say.browserResult.action}
+                      </div>
+                      <div>
+                        <span className="font-medium">Status:</span>
                         {say.browserResult.success ? " Success" : " Failed"}
                       </div>
                     </div>
@@ -146,8 +171,8 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
                     )}
                     {say.browserResult.screenshot && (
                       <div className="mt-3">
-                        <img 
-                          src={say.browserResult.screenshot} 
+                        <img
+                          src={say.browserResult.screenshot}
                           alt="Browser screenshot"
                           className="max-w-full h-auto rounded border"
                         />
@@ -162,30 +187,40 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
 
       case "mcp_server_response":
         return (
-          <div className={`border rounded-lg p-3 ${
-            say.mcpResult?.success 
-              ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700"
-              : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700"
-          }`}>
+          <div
+            className={`border rounded-lg p-3 ${
+              say.mcpResult?.success
+                ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700"
+                : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700"
+            }`}
+          >
             <div className="flex items-start space-x-2">
               <span className="text-lg">
                 {say.mcpResult?.success ? "🔧✅" : "🔧❌"}
               </span>
               <div className="flex-1">
-                <h4 className={`font-semibold ${
-                  say.mcpResult?.success 
-                    ? "text-indigo-700 dark:text-indigo-300"
-                    : "text-red-700 dark:text-red-300"
-                }`}>
+                <h4
+                  className={`font-semibold ${
+                    say.mcpResult?.success
+                      ? "text-indigo-700 dark:text-indigo-300"
+                      : "text-red-700 dark:text-red-300"
+                  }`}
+                >
                   MCP Server Response
                 </h4>
                 {say.mcpResult && (
                   <div className="mt-2 space-y-2">
                     <div className="text-sm">
-                      <div><span className="font-medium">Server:</span> {say.mcpResult.serverName}</div>
-                      <div><span className="font-medium">Tool:</span> {say.mcpResult.toolName}</div>
                       <div>
-                        <span className="font-medium">Status:</span> 
+                        <span className="font-medium">Server:</span>{" "}
+                        {say.mcpResult.serverName}
+                      </div>
+                      <div>
+                        <span className="font-medium">Tool:</span>{" "}
+                        {say.mcpResult.toolName}
+                      </div>
+                      <div>
+                        <span className="font-medium">Status:</span>
                         {say.mcpResult.success ? " Success" : " Failed"}
                       </div>
                     </div>
@@ -198,8 +233,8 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
                       <div className="mt-2">
                         <div className="text-sm font-medium">Result:</div>
                         <pre className="text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded mt-1 overflow-x-auto">
-                          {typeof say.mcpResult.result === 'string' 
-                            ? say.mcpResult.result 
+                          {typeof say.mcpResult.result === "string"
+                            ? say.mcpResult.result
                             : JSON.stringify(say.mcpResult.result, null, 2)}
                         </pre>
                       </div>
@@ -217,42 +252,58 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-start space-x-2">
               <span className="text-purple-500 text-lg">🔍</span>
               <div className="flex-1">
-                <h4 className="font-semibold text-purple-700 dark:text-purple-300">Codebase Search Results</h4>
+                <h4 className="font-semibold text-purple-700 dark:text-purple-300">
+                  Codebase Search Results
+                </h4>
                 {say.searchResult && (
                   <div className="mt-2 space-y-3">
                     <div className="text-sm">
-                      <div><span className="font-medium">Query:</span> "{say.searchResult.query}"</div>
                       <div>
-                        <span className="font-medium">Results:</span> {say.searchResult.totalCount}
+                        <span className="font-medium">Query:</span> "
+                        {say.searchResult.query}"
+                      </div>
+                      <div>
+                        <span className="font-medium">Results:</span>{" "}
+                        {say.searchResult.totalCount}
                         {say.searchResult.searchTime && (
-                          <span className="text-gray-500"> ({say.searchResult.searchTime}ms)</span>
+                          <span className="text-gray-500">
+                            {" "}
+                            ({say.searchResult.searchTime}ms)
+                          </span>
                         )}
                       </div>
                     </div>
-                    {say.searchResult.results && say.searchResult.results.length > 0 && (
-                      <div className="space-y-2">
-                        {say.searchResult.results.slice(0, 5).map((result, index) => (
-                          <div key={index} className="bg-white dark:bg-gray-800 p-2 rounded border">
-                            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                              📄 {result.file}:{result.line}
-                            </div>
-                            <div className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                              {result.match}
-                            </div>
-                            {result.context && (
-                              <div className="text-xs text-gray-500 mt-1 font-mono">
-                                {result.context}
+                    {say.searchResult.results &&
+                      say.searchResult.results.length > 0 && (
+                        <div className="space-y-2">
+                          {say.searchResult.results
+                            .slice(0, 5)
+                            .map((result, index) => (
+                              <div
+                                key={index}
+                                className="bg-white dark:bg-gray-800 p-2 rounded border"
+                              >
+                                <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                  📄 {result.file}:{result.line}
+                                </div>
+                                <div className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                                  {result.match}
+                                </div>
+                                {result.context && (
+                                  <div className="text-xs text-gray-500 mt-1 font-mono">
+                                    {result.context}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ))}
-                        {say.searchResult.results.length > 5 && (
-                          <div className="text-sm text-gray-500 italic">
-                            ... and {say.searchResult.results.length - 5} more results
-                          </div>
-                        )}
-                      </div>
-                    )}
+                            ))}
+                          {say.searchResult.results.length > 5 && (
+                            <div className="text-sm text-gray-500 italic">
+                              ... and {say.searchResult.results.length - 5} more
+                              results
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
@@ -266,7 +317,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-green-500 text-lg">💾</span>
               <div>
-                <h4 className="font-semibold text-green-700 dark:text-green-300">Checkpoint Saved</h4>
+                <h4 className="font-semibold text-green-700 dark:text-green-300">
+                  Checkpoint Saved
+                </h4>
                 {say.checkpoint && (
                   <div className="text-sm text-green-600 dark:text-green-400 mt-1">
                     ID: {say.checkpoint.id}
@@ -286,11 +339,15 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-blue-500 text-lg">🗜️</span>
               <div>
-                <h4 className="font-semibold text-blue-700 dark:text-blue-300">Context Condensation</h4>
+                <h4 className="font-semibold text-blue-700 dark:text-blue-300">
+                  Context Condensation
+                </h4>
                 {say.contextCondense && (
                   <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                    {say.contextCondense.originalTokens} → {say.contextCondense.condensedTokens} tokens
-                    ({(say.contextCondense.compressionRatio * 100).toFixed(1)}% compression)
+                    {say.contextCondense.originalTokens} →{" "}
+                    {say.contextCondense.condensedTokens} tokens (
+                    {(say.contextCondense.compressionRatio * 100).toFixed(1)}%
+                    compression)
                   </div>
                 )}
               </div>
@@ -304,7 +361,9 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
             <div className="flex items-center space-x-2">
               <span className="text-red-500 text-lg">❌</span>
               <div>
-                <h4 className="font-semibold text-red-700 dark:text-red-300">Context Condensation Failed</h4>
+                <h4 className="font-semibold text-red-700 dark:text-red-300">
+                  Context Condensation Failed
+                </h4>
                 <div className="text-sm text-red-600 dark:text-red-400 mt-1">
                   {say.text || "Failed to condense context"}
                 </div>
@@ -316,9 +375,10 @@ export const SayMessageRenderer: React.FC<SayMessageRendererProps> = ({ say, tex
       default:
         return (
           <div className="text-gray-700 dark:text-gray-300">
-            <div className="whitespace-pre-wrap break-words">
-              {say.text || "No message content"}
-            </div>
+            <MarkdownContent
+              content={say.text || "No message content"}
+              className="leading-relaxed"
+            />
           </div>
         );
     }
