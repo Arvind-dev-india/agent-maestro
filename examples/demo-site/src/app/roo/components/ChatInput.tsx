@@ -1,13 +1,14 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
 import {
   autoResizeTextarea,
-  resetTextarea,
   focusTextarea,
+  resetTextarea,
 } from "../utils/chatHelpers";
 import { UI_CONFIG } from "../utils/constants";
-import { ModeSelector } from "./ModeSelector";
 import { ExtensionSelector } from "./ExtensionSelector";
 import { ImageUpload } from "./ImageUpload";
+import { ModeSelector } from "./ModeSelector";
 
 interface ChatInputProps {
   value: string;
@@ -72,11 +73,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const canSend = !disabled && (value.trim() || images.length > 0);
 
   return (
-    <div className="bg-white/95 backdrop-blur-md px-4 sm:pl-20 sm:pr-15 py-4 sm:py-5 border-t border-black/10">
-      <div className="max-w-4xl mx-auto">
+    <div className="bg-white/95 backdrop-blur-md px-2 sm:px-4 md:pl-20 md:pr-15 py-3 sm:py-4 md:py-5 border-t border-black/10">
+      <div className="max-w-4xl mx-auto w-full">
         {/* Mobile-first responsive layout */}
-        <div className="space-y-3">
-          
+        <div className="space-y-2 sm:space-y-3">
           {/* Mode and Extension Selectors - Stack on mobile, inline on desktop */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <ModeSelector
@@ -113,15 +113,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 placeholder={disabled ? "Please wait..." : placeholder}
                 disabled={disabled}
                 rows={1}
-                className="w-full px-4 py-3 pr-16 sm:pr-20 bg-white border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-12 sm:pr-16 md:pr-20 bg-white border border-gray-300 rounded-xl sm:rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500 text-sm sm:text-base"
                 style={{
                   minHeight: "52px",
                   maxHeight: `${UI_CONFIG.TEXTAREA_MAX_HEIGHT}px`,
                 }}
               />
-              
+
               {/* Input controls */}
-              <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+              <div className="absolute right-1 sm:right-2 bottom-1.5 sm:bottom-2 flex items-center space-x-0.5 sm:space-x-1">
                 <button
                   type="button"
                   onClick={() => setShowImageUpload(!showImageUpload)}
@@ -133,7 +133,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   title="Add images"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -142,7 +147,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     />
                   </svg>
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={handleSend}
@@ -171,7 +176,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           {images.length > 0 && (
             <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <span>📎 {images.length} image{images.length !== 1 ? 's' : ''} attached</span>
+                <span>
+                  📎 {images.length} image{images.length !== 1 ? "s" : ""}{" "}
+                  attached
+                </span>
               </div>
               <button
                 onClick={() => onImagesChange([])}
