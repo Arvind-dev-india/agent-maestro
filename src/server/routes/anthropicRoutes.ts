@@ -180,7 +180,10 @@ export function registerAnthropicRoutes(app: OpenAPIHono) {
       );
 
       // 1. Check if selected model is available in VS Code LM API
-      const { client, error: clientError } = await getChatModelClient(modelId);
+      const { client, error: clientError } = await getChatModelClient(
+        modelId,
+        false, // false = main conversation (uses main model)
+      );
 
       if (clientError) {
         return c.json(clientError, 404);
@@ -454,6 +457,7 @@ export function registerAnthropicRoutes(app: OpenAPIHono) {
 
       const { client, error: clientError } = await getChatModelClient(
         requestBody.model,
+        true, // true = utility request (token counting uses fast model)
       );
 
       if (clientError) {
