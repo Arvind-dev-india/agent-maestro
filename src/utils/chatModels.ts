@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 
-import { getClaudeConfiguredModels } from "./claude";
 import { logger } from "./logger";
 
 class ChatModelsCache {
@@ -150,97 +149,14 @@ export const getChatModelsQuickPickItems = async (recommended?: string) => {
 };
 
 /**
- * Convert Anthropic API model ID to VSCode LM API model ID
- *
- * IMPORTANT: This function now prioritizes user-configured models from Claude settings.
- *
- * Why this change matters:
- * - When new Claude models are introduced (e.g., claude-4, claude-opus-5, etc.),
- *   the extension would previously fall back to hardcoded defaults like claude-3.5-sonnet
- * - This could cause users to unknowingly use premium models, increasing costs
- * - By using the user's configured mainModel/fastModel from .claude/settings.json,
- *   we ensure the user's explicit model choice is respected
- *
- * Logic:
- * 1. Remove date suffix from model ID (e.g., claude-sonnet-4-20250514 -> claude-sonnet-4)
- * 2. If user has Claude config:
- *    - Check if requested model matches their configured fast/main model
- *    - If yes: use it (user selected this model from VS Code LM picker)
- *    - If no: default to user's configured main model (for regular requests)
- *            or fast model (for utility requests)
- * 3. If no Claude config exists: return the model as-is (no override)
- *
- * This ensures future-compatibility without requiring extension updates for new models.
- */
-export const convertAnthropicModelToVSCodeModel = (
-  modelId: string,
-  isUtilityRequest: boolean = false,
-): string => {
-  // Remove date suffix (pattern: -YYYYMMDD at the end) for accurate pattern matching
-  const withoutDate = modelId.replace(/-\d{8}$/, "");
-
-  // Get user's configured models from .claude/settings.json
-  const claudeConfig = getClaudeConfiguredModels();
-
-  if (claudeConfig) {
-    // Check if the requested model (after date removal) matches user's configured models
-    // User might have explicitly selected these models from VS Code LM picker,
-    // so we should respect their choice
-    if (
-      withoutDate === claudeConfig.mainModel ||
-      withoutDate === claudeConfig.fastModel
-    ) {
-      logger.info(
-        `✅ Model ${withoutDate} matches user configuration, using as-is`,
-      );
-      return withoutDate;
-    }
-
-    // Model doesn't match user config - use configured model as default
-    // This prevents unknowingly using premium models when new models are introduced
-    const overrideModel = isUtilityRequest
-      ? claudeConfig.fastModel
-      : claudeConfig.mainModel;
-    logger.info(
-      `⚡ Overriding ${modelId} with configured ${isUtilityRequest ? "fast" : "main"} model: ${overrideModel}`,
-    );
-    return overrideModel;
-  }
-
-  // No Claude config found - return model as-is without any conversion
-  // This allows the system to work even without .claude/settings.json
-  logger.debug(`No Claude config found, using requested model: ${withoutDate}`);
-  return withoutDate;
-};
-
-/**
  * Get chat model client with integrated override logic
  */
-const ANTHROPIC_MODEL_PREFIX = "claude";
-export const getChatModelClient = async (
-  modelId: string,
-  isUtilityRequest: boolean = false,
-) => {
-  // For Claude models, apply conversion with override logic
-  let effectiveModelId: string;
-
-  if (modelId.startsWith(ANTHROPIC_MODEL_PREFIX)) {
-    effectiveModelId = convertAnthropicModelToVSCodeModel(
-      modelId,
-      isUtilityRequest,
-    );
-  } else {
-    // For non-Claude models, use as-is
-    effectiveModelId = modelId;
-  }
-
+export const getChatModelClient = async (modelId: string) => {
   const models = await chatModelsCache.getChatModels();
-  const client = models.find((m) => m.id === effectiveModelId);
+  const client = models.find((m) => m.id === modelId);
 
   if (!client) {
-    logger.error(
-      `No VS Code LM model available for model ID: ${modelId} (effective: ${effectiveModelId})`,
-    );
+    logger.error(`No VS Code LM model available for model ID: ${modelId} `);
     return {
       error: {
         error: {
