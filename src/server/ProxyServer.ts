@@ -17,6 +17,8 @@ import { registerOpenaiRoutes } from "./routes/openaiRoutes";
 import { registerRooRoutes } from "./routes/rooRoutes";
 import { registerWorkspaceRoutes } from "./routes/workspaceRoutes";
 
+const PORT_MONITOR_INTERVAL_MS = 60_000; // 1 minute
+
 export class ProxyServer {
   private app: OpenAPIHono;
   private controller: ExtensionController;
@@ -24,6 +26,7 @@ export class ProxyServer {
   private isRunning = false;
   private port: number;
   private server?: ServerType;
+  private portMonitorInterval?: NodeJS.Timeout;
 
   constructor(
     controller: ExtensionController,
@@ -171,13 +174,16 @@ export class ProxyServer {
         }
 
       case "skip":
-        // Another instance of our server is already running, skip silently
+        // Another instance of our server is already running, start monitoring
         logger.info(
           `${analysis.message}. API available at http://0.0.0.0:${this.port}/openapi.json`,
         );
+        // Start monitoring for when the port becomes available
+        await this.startPortMonitoring();
         return {
           started: false,
-          reason: "Another instance is already running",
+          reason:
+            "Another instance is already running, monitoring for availability",
           port: this.port,
         };
 
@@ -194,6 +200,9 @@ export class ProxyServer {
   }
 
   async stop(): Promise<void> {
+    // Stop port monitoring if active
+    this.stopPortMonitoring();
+
     if (!this.isRunning) {
       logger.warn("Server is not running");
       return;
@@ -232,5 +241,37 @@ export class ProxyServer {
 
   getOpenApiUrl(): string {
     return `http://0.0.0.0:${this.port}/openapi.json`;
+  }
+
+  private async startPortMonitoring() {
+    if (this.portMonitorInterval) {
+      return; // Monitoring is already active
+    }
+
+    this.portMonitorInterval = setInterval(async () => {
+      const analysis = await analyzePortUsage(this.port, "proxy");
+      if (analysis.action !== "use") {
+        return; // Port is still not available
+      }
+
+      logger.info("Port is now available. Attempting to start server...");
+      try {
+        await this.start();
+        // If server started successfully, stop monitoring
+        if (this.isRunning) {
+          clearInterval(this.portMonitorInterval);
+          this.portMonitorInterval = undefined;
+        }
+      } catch (error) {
+        logger.error("Failed to start server during monitoring:", error);
+      }
+    }, PORT_MONITOR_INTERVAL_MS);
+  }
+
+  private stopPortMonitoring() {
+    if (this.portMonitorInterval) {
+      clearInterval(this.portMonitorInterval);
+      this.portMonitorInterval = undefined;
+    }
   }
 }
