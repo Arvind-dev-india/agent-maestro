@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.3.5 - 2025.10.18
+
+- Fixed issue where responses from the "Execute Roo Tasks" MCP tool were being truncated
+
+## v2.3.4 - 2025.10.15
+
+- Add automatic port monitoring to ensure Proxy and MCP server availability
+- Improved Claude model handling to prioritize user-configured models over hardcoded defaults
+
 ## v2.3.3 - 2025.10.02
 
 - **Seamlessly support Claude Code native extension** by self-check and extra config

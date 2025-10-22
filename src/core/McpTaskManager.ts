@@ -1,12 +1,13 @@
 import { RooCodeEventName } from "@roo-code/types";
-import { isEqual, Semaphore } from "es-toolkit";
+import { Semaphore, isEqual } from "es-toolkit";
 // @ts-expect-error "TS1479: The current file is a CommonJS module"
 import type { Content } from "fastmcp";
+import { v4 as uuidv4 } from "uuid";
+
+import { TaskEvent } from "../server/types";
+import { closeAllEmptyTabGroups } from "../utils/extension";
 import { logger } from "../utils/logger";
 import { RooCodeAdapter } from "./RooCodeAdapter";
-import { TaskEvent } from "../server/types";
-import { v4 as uuidv4 } from "uuid";
-import { closeAllEmptyTabGroups } from "../utils/extension";
 
 export interface TaskRun {
   task: string;
@@ -166,17 +167,18 @@ export class McpTaskManager {
 
           const { message } = (event as TaskEvent<RooCodeEventName.Message>)
             .data;
-          if (message.say === "text" || message.say === "completion_result") {
+
+          if (message.say === "text") {
             if (run[taskId].status === "created") {
               run[taskId].status = "running";
             }
             run[taskId].result = message.text ?? "";
-            await updateRunAndStream(taskId);
+          }
 
-            if (message.say === "completion_result" && !message.partial) {
-              run[taskId].status = "completed";
-              return;
-            }
+          if (message.say === "completion_result" && !message.partial) {
+            run[taskId].status = "completed";
+            run[taskId].result = message.text ?? "";
+            return;
           }
         }
         // Handle TaskCompleted event
@@ -185,7 +187,6 @@ export class McpTaskManager {
             run[taskId].status = "completed";
             await updateRunAndStream(taskId);
           }
-          return;
         }
         // Handle TaskAborted event
         else if (event.name === RooCodeEventName.TaskAborted) {
