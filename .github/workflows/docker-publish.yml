@@ -1,0 +1,138 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g., 2.3.5)"
+        required: false
+        default: "latest"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/tailscale
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.tailscale
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate deployment files
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p deploy-artifacts
+
+          # Copy deployment files
+          cp docker-compose.remote.yml deploy-artifacts/docker-compose.yml
+          cp .env.example deploy-artifacts/.env.example
+          cp DOCKER-PUBLISH.md deploy-artifacts/README.md
+
+          # Create quick start script
+          cat > deploy-artifacts/quick-start.sh << 'EOF'
+          #!/bin/bash
+          echo "Agent Maestro Quick Start"
+          echo "=========================="
+          echo ""
+          echo "1. Edit .env file and set your TAILSCALE_AUTH_KEY"
+          echo "2. Update VSCODE_HOST if VS Code is on a different machine"
+          echo "3. Run: docker compose pull && docker compose up -d"
+          echo ""
+          echo "For full documentation, see README.md"
+          EOF
+          chmod +x deploy-artifacts/quick-start.sh
+
+      - name: Upload deployment artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-files
+          path: deploy-artifacts/
+          retention-days: 90
+
+      - name: Create deployment package
+        if: github.event_name == 'release'
+        run: |
+          tar -czf agent-maestro-deploy-${{ github.ref_name }}.tar.gz -C deploy-artifacts .
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: agent-maestro-deploy-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "## 🚀 Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Quick Deploy" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# On your remote VM:" >> $GITHUB_STEP_SUMMARY
+          echo "curl -L https://github.com/${{ github.repository }}/releases/latest/download/agent-maestro-deploy.tar.gz | tar xz" >> $GITHUB_STEP_SUMMARY
+          echo "cp .env.example .env" >> $GITHUB_STEP_SUMMARY
+          echo "# Edit .env and set TAILSCALE_AUTH_KEY" >> $GITHUB_STEP_SUMMARY
+          echo "docker compose pull && docker compose up -d" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

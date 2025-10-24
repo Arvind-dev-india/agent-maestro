@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.vscode-test.mjs
+.vscodeignore
+.idea
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+*.vsix
+
+# Logs
+*.log
+logs
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation (keep essential ones)
+CHANGELOG.md
+IMPLEMENTATION-SUMMARY.md
+
+# CI/CD
+.github
+
+# Testing
+.husky
+.prettierignore
+.prettierrc
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+*~
+.changeset
+.npmrc
+.claude
+.astred.project.json
+astred.defs.json
+.vscode/learning-data
+
+# Docker artifacts from build (keep compose files)
+2b7120854845b6c57c51713a6f7a1efa9f7577a9dc84c00e2224b505a8eddae7
+
+# Scripts not needed in image
+setup.sh
+start.sh
+stop.sh
+logs.sh
+status.sh
+validate-setup.sh

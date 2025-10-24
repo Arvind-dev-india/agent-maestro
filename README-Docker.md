@@ -9,9 +9,32 @@ The Docker deployment creates a container that:
 - Runs the Agent Maestro demo website
 - Connects to your Tailscale network automatically
 - Provides secure remote access to your local VS Code extension
+- Exposes complete API on port 23333 via Tailscale
 - Requires no authentication (secured by Tailscale network)
 
-## 🚀 Quick Start
+## 📦 Deployment Options
+
+### Option 1: Quick Deploy with Pre-built Image (Recommended for Remote VMs)
+
+Use a pre-built Docker image on any remote VM without cloning the repository:
+
+```bash
+# One-line deployment (interactive)
+curl -sSL https://raw.githubusercontent.com/yourusername/agent-maestro/main/quick-deploy.sh | bash
+```
+
+**See [DOCKER-PUBLISH.md](DOCKER-PUBLISH.md) for:**
+
+- Publishing your own Docker image
+- Using images on multiple VMs
+- Advanced deployment scenarios
+- CI/CD integration
+
+### Option 2: Build from Source (For Development)
+
+Build the Docker image locally for development or customization:
+
+## 🚀 Quick Start (Build from Source)
 
 ### Prerequisites
 
