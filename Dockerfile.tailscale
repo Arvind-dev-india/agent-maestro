@@ -6,8 +6,8 @@ COPY examples/demo-site/ .
 RUN npm run build
 
 FROM node:18-alpine AS runtime
-# Install Tailscale directly from Alpine packages
-RUN apk add --no-cache ca-certificates iptables ip6tables curl bash tailscale
+# Install Tailscale and socat for TCP forwarding
+RUN apk add --no-cache ca-certificates iptables ip6tables curl bash tailscale socat
 
 WORKDIR /app
 
@@ -27,5 +27,5 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh /app/health-check.js
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD node /app/health-check.js || exit 1
 
-EXPOSE 3000
+EXPOSE 3000 23333
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

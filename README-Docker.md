@@ -5,6 +5,7 @@ This guide explains how to deploy Agent Maestro demo site with Tailscale integra
 ## 🎯 Overview
 
 The Docker deployment creates a container that:
+
 - Runs the Agent Maestro demo website
 - Connects to your Tailscale network automatically
 - Provides secure remote access to your local VS Code extension
@@ -42,16 +43,36 @@ chmod +x setup.sh
 ./start.sh
 ```
 
-### Step 3: Access Your Demo Site
+### Step 3: Access Your Demo Site and API
 
 After starting, you'll get output like:
+
 ```
 Demo site is available at:
   Tailscale network: http://100.x.x.x:3000
   Local access: http://localhost:3000
+VS Code API (OpenAPI): http://100.x.x.x:23333/openapi.json
+VS Code API endpoints: http://100.x.x.x:23333/api/v1/*
 ```
 
-Access the demo site from any device in your Tailscale network using the provided IP address.
+Access the demo site and all API endpoints from any device in your Tailscale network using the provided Tailscale IP address.
+
+#### Available API Endpoints
+
+All APIs documented in the OpenAPI specification are accessible via Tailscale:
+
+- **OpenAPI Spec**: `http://<tailscale-ip>:23333/openapi.json`
+- **System Info**: `http://<tailscale-ip>:23333/api/v1/info`
+- **Tasks**: `http://<tailscale-ip>:23333/api/v1/roo/task`, `http://<tailscale-ip>:23333/api/v1/cline/task`
+- **File System**: `http://<tailscale-ip>:23333/api/v1/fs/read`, `http://<tailscale-ip>:23333/api/v1/fs/write`
+- **Workspace**: `http://<tailscale-ip>:23333/api/v1/workspace/*`
+- **Language Models**: `http://<tailscale-ip>:23333/api/v1/lm/*`
+- **Anthropic API**: `http://<tailscale-ip>:23333/api/anthropic/v1/messages`
+- **OpenAI API**: `http://<tailscale-ip>:23333/api/openai/chat/completions`
+- **Profiles**: `http://<tailscale-ip>:23333/api/v1/roo/profiles`
+- **MCP Configuration**: `http://<tailscale-ip>:23333/api/v1/roo/install-mcp-config`
+
+See the complete API documentation at the OpenAPI spec URL.
 
 ## 📋 Detailed Setup
 
@@ -77,34 +98,38 @@ docker compose logs -f
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `TAILSCALE_AUTH_KEY` | Tailscale authentication key | - | Yes |
-| `DEMO_PORT` | Port to expose demo site | 3000 | No |
-| `LOCAL_VSCODE_HOST` | VS Code host address | host.docker.internal | No |
-| `LOCAL_VSCODE_PORT` | VS Code extension port | 23333 | No |
-| `LOG_LEVEL` | Logging level | info | No |
+| Variable             | Description                  | Default              | Required |
+| -------------------- | ---------------------------- | -------------------- | -------- |
+| `TAILSCALE_AUTH_KEY` | Tailscale authentication key | -                    | Yes      |
+| `DEMO_PORT`          | Port to expose demo site     | 3000                 | No       |
+| `LOCAL_VSCODE_HOST`  | VS Code host address         | host.docker.internal | No       |
+| `LOCAL_VSCODE_PORT`  | VS Code extension port       | 23333                | No       |
+| `LOG_LEVEL`          | Logging level                | info                 | No       |
 
 ## 🔧 Management Scripts
 
 The setup creates several management scripts:
 
 ### `./start.sh` - Start the service
+
 ```bash
 ./start.sh
 ```
 
 ### `./stop.sh` - Stop the service
+
 ```bash
 ./stop.sh
 ```
 
 ### `./logs.sh` - View logs
+
 ```bash
 ./logs.sh
 ```
 
 ### `./status.sh` - Check status
+
 ```bash
 ./status.sh
 ```
@@ -112,19 +137,67 @@ The setup creates several management scripts:
 ## 🌐 Network Architecture
 
 ```
-Your Device (Tailscale) → Tailscale Network → Docker Container → localhost:23333 (VS Code)
+Your Device (Tailscale) → Tailscale Network → Docker Container → localhost:23333 (VS Code API)
+                                                      ↓
+                                                  Port 3000 (Demo Site)
+                                                  Port 23333 (VS Code API Proxy)
 ```
 
 1. **Your Device**: Any device in your Tailscale network
 2. **Tailscale Network**: Encrypted tunnel to the Docker container
-3. **Docker Container**: Runs demo site with Tailscale client
-4. **VS Code Extension**: Running on localhost:23333 on the host
+3. **Docker Container**:
+   - Runs demo site on port 3000
+   - Proxies VS Code API on port 23333 using `socat`
+   - Both ports are accessible via Tailscale IP
+4. **VS Code API**: Running on `host.docker.internal:23333` (localhost of the Docker host)
+
+The container uses `socat` to forward TCP connections from the Tailscale network to the VS Code extension API running on the host machine, making all API endpoints accessible remotely.
+
+## 🧪 Testing API Access
+
+### Test from your Tailscale network
+
+Once the container is running, you can test API access from any device on your Tailscale network:
+
+```bash
+# Get the Tailscale IP
+docker exec agent-maestro-demo tailscale ip -4
+
+# Test the OpenAPI spec
+curl http://<tailscale-ip>:23333/openapi.json
+
+# Test system info
+curl http://<tailscale-ip>:23333/api/v1/info
+
+# Test language models
+curl http://<tailscale-ip>:23333/api/v1/lm/chatModels
+
+# Test Anthropic API compatibility
+curl -X POST http://<tailscale-ip>:23333/api/anthropic/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### Test from the Docker host
+
+```bash
+# Test local API (should work)
+curl http://localhost:23333/api/v1/info
+
+# Test from container to host
+docker exec agent-maestro-demo curl http://host.docker.internal:23333/api/v1/info
+```
 
 ## 📊 Monitoring and Health Checks
 
 ### Built-in Health Monitoring
 
 The demo site includes real-time connection monitoring:
+
 - **Tailscale Status**: Shows network connection and IP
 - **VS Code Status**: Monitors extension connectivity
 - **Auto-refresh**: Updates every 30 seconds
@@ -138,6 +211,7 @@ The demo site includes real-time connection monitoring:
 ### Docker Health Checks
 
 The container includes built-in health checks:
+
 ```bash
 # Check container health
 docker compose ps
@@ -151,6 +225,7 @@ docker inspect agent-maestro-demo --format='{{.State.Health.Status}}'
 ### Common Issues
 
 #### 1. Tailscale Connection Failed
+
 ```bash
 # Check Tailscale auth key
 docker compose logs | grep -i tailscale
@@ -160,15 +235,33 @@ docker exec agent-maestro-demo tailscale status
 ```
 
 #### 2. VS Code Extension Not Accessible
+
 ```bash
 # Check if VS Code extension is running
 curl -f http://localhost:23333/api/v1/info
 
 # Check Docker container can reach host
 docker exec agent-maestro-demo curl -f http://host.docker.internal:23333/api/v1/info
+
+# Check socat is forwarding properly
+docker exec agent-maestro-demo ps aux | grep socat
 ```
 
-#### 3. Container Won't Start
+#### 3. API Not Accessible via Tailscale
+
+```bash
+# Verify socat is running
+docker exec agent-maestro-demo ps aux | grep socat
+
+# Check if port 23333 is listening in container
+docker exec agent-maestro-demo netstat -tuln | grep 23333
+
+# Test from within container
+docker exec agent-maestro-demo curl http://localhost:23333/api/v1/info
+```
+
+#### 4. Container Won't Start
+
 ```bash
 # Check Docker permissions for /dev/net/tun
 ls -la /dev/net/tun
@@ -199,18 +292,21 @@ docker compose logs -f --tail=50
 ## 🔒 Security Considerations
 
 ### Tailscale Network Security
+
 - All traffic encrypted by Tailscale
 - No ports exposed to public internet
 - Access controlled by Tailscale ACLs
 - Automatic device authentication
 
 ### Container Security
+
 - Runs with minimal privileges
 - No persistent storage of secrets
 - Health checks for service monitoring
 - Resource limits configured
 
 ### Best Practices
+
 1. **Rotate Tailscale keys** regularly
 2. **Use Tailscale ACLs** to restrict access
 3. **Monitor container logs** for unusual activity
@@ -222,7 +318,7 @@ docker compose logs -f --tail=50
 
 ```yaml
 # docker-compose.override.yml
-version: '3.8'
+version: "3.8"
 services:
   agent-maestro-demo:
     environment:
@@ -239,7 +335,7 @@ deploy:
   resources:
     limits:
       memory: 1G
-      cpus: '1.0'
+      cpus: "1.0"
 ```
 
 ### Persistent Data

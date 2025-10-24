@@ -69,7 +69,11 @@ echo ""
 echo "=== Configuration ==="
 echo "Demo site URL: http://$TAILSCALE_IP:3000 (via Tailscale)"
 echo "Local URL: http://localhost:3000 (if port mapped)"
-echo "VS Code API: $API_BASE_URL"
+echo "VS Code API (host): $API_BASE_URL"
+echo "VS Code API (Tailscale): http://$TAILSCALE_IP:$LOCAL_VSCODE_PORT"
+echo "  - OpenAPI Spec: http://$TAILSCALE_IP:$LOCAL_VSCODE_PORT/openapi.json"
+echo "  - System Info: http://$TAILSCALE_IP:$LOCAL_VSCODE_PORT/api/v1/info"
+echo "  - All API endpoints accessible via Tailscale network"
 echo "Tailscale Status: $TAILSCALE_STATUS"
 echo "Authentication: Disabled (Tailscale network security)"
 echo "====================="
@@ -81,11 +85,19 @@ cd /app
 npm start &
 DEMO_SITE_PID=$!
 
+# Start TCP forwarder to expose host VS Code API over Tailscale
+if [ -n "$LOCAL_VSCODE_PORT" ]; then
+  echo "Starting VS Code API forwarder on port $LOCAL_VSCODE_PORT (-> $LOCAL_VSCODE_HOST:$LOCAL_VSCODE_PORT) ..."
+  socat TCP-LISTEN:$LOCAL_VSCODE_PORT,fork,reuseaddr TCP:$LOCAL_VSCODE_HOST:$LOCAL_VSCODE_PORT &
+  FORWARD_PID=$!
+fi
+
 # Function to handle shutdown
 shutdown() {
     echo "Shutting down services..."
     kill $DEMO_SITE_PID 2>/dev/null || true
     kill $TAILSCALED_PID 2>/dev/null || true
+    [ -n "$FORWARD_PID" ] && kill $FORWARD_PID 2>/dev/null || true
     wait $DEMO_SITE_PID 2>/dev/null || true
     wait $TAILSCALED_PID 2>/dev/null || true
     echo "Shutdown complete"
