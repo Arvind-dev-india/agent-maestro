@@ -1,6 +1,5 @@
 import { RooCodeEventName } from "@roo-code/types";
 import { Semaphore, isEqual } from "es-toolkit";
-// @ts-expect-error "TS1479: The current file is a CommonJS module"
 import type { Content } from "fastmcp";
 import { v4 as uuidv4 } from "uuid";
 
@@ -119,7 +118,7 @@ export class McpTaskManager {
   ): Promise<void> {
     let taskId = "";
 
-    const updateRunAndStream = async (id: string) => {
+    const updateRunAndStream = async (_id: string) => {
       if (streamContent) {
         await streamContent({
           type: "text",
