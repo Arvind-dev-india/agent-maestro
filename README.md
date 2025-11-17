@@ -5,7 +5,7 @@
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/Joouis.agent-maestro)](https://marketplace.visualstudio.com/items?itemName=Joouis.agent-maestro)
 [![License](https://img.shields.io/github/license/Joouis/agent-maestro)](./LICENSE) -->
 
-Turn VS Code into your compliant AI playground! With Agent Maestro, spin up Cline or Roo on demand and plug Claude Code or Codex straight in through an OpenAI/Anthropic-compatible API.
+Turn VS Code into your compliant AI playground! With Agent Maestro, spin up Cline or Roo on demand and plug Claude Code, Codex, or Gemini CLI straight in through an OpenAI/Anthropic/Gemini-compatible API.
 
 ![Claude Code Support](https://media.githubusercontent.com/media/Joouis/agent-maestro/main/assets/configure-claude-code-demo.gif)
 
@@ -15,8 +15,8 @@ Turn VS Code into your compliant AI playground! With Agent Maestro, spin up Clin
 
 Turn VS Code into your compliant AI playground with powerful API compatibility and one-click setup:
 
-- **Universal API Compatibility**: Anthropic (`/messages`) and OpenAI (`/chat/completions`) compatible endpoints - use Claude Code, Codex or any LLM client seamlessly
-- **One-Click Setup**: Automated configuration commands for instant Claude Code and Codex integration
+- **Universal API Compatibility**: Anthropic (`/messages`), OpenAI (`/chat/completions`), and Gemini compatible endpoints - use Claude Code, Codex, Gemini CLI or any LLM client seamlessly
+- **One-Click Setup**: Automated configuration commands for instant Claude Code, Codex, and Gemini CLI integration
 - **Headless AI Agent Control**: Create and manage tasks through REST APIs for Roo Code and Cline extensions
   - **Comprehensive APIs**: Complete task lifecycle management with OpenAPI documentation at `/openapi.json`
   - **Parallel Execution**: Run up to 20 concurrent RooCode (and its variants like Kilo Code) tasks with built-in MCP server integration
@@ -30,8 +30,9 @@ Turn VS Code into your compliant AI playground with powerful API compatibility a
 Agent Maestro assumes you already installed one of the supported AI coding extensions:
 
 - [Roo Code](https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline) or its variants for comprehensive API control
-- [Claude Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code) for personal development routines.
-- [Codex](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt) for personal development routines.
+- [Claude Code](https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code) for personal development routines
+- [Codex](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt) for personal development routines
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) for personal development routines
 
 ### Installation
 
@@ -50,6 +51,48 @@ This automatically creates or updates `.claude/settings.json` with Agent Maestro
 Configure Codex to use VS Code's language models with a single command `Agent Maestro: Configure Codex Settings` via Command Palette.
 
 This automatically creates or updates `~/.codex/config.toml` with Agent Maestro endpoint and sets up `GPT-5-Codex` as the recommended model.
+
+### One-Click Setup for Gemini CLI
+
+Configure Gemini CLI to use VS Code's language models with a single command `Agent Maestro: Configure Gemini CLI Settings` via Command Palette.
+
+You can choose between:
+
+- **User Settings** (`~/.env`): Personal global settings for all projects
+- **Project Settings** (`.env` in workspace): Team-shared project settings in source control
+
+This automatically creates or updates the `.env` file with:
+
+- `GOOGLE_GEMINI_BASE_URL`: Agent Maestro Gemini endpoint
+- `GEMINI_API_KEY`: Default authentication token (preserved if already set)
+- `GEMINI_MODEL`: Your selected model from available VS Code language models
+- `GEMINI_TELEMETRY_ENABLED`: Disable telemetry by default
+
+Additionally, it creates or updates `settings.json` in the same folder to skip the authentication method selection on first launch:
+
+```json
+{
+  "security": {
+    "auth": {
+      "selectedType": "gemini-api-key"
+    }
+  }
+}
+```
+
+### GitHub Copilot Chat Model Enhancement
+
+Enable additional models in GitHub Copilot Chat with the `Agent Maestro: Fix GitHub Copilot Chat - Model is not supported error` command. ([ref](https://github.com/cline/cline/issues/2186#issuecomment-2727010228))
+
+This feature:
+
+- Automatically locates your GitHub Copilot Chat extension
+- Creates a timestamped backup before making changes
+- Removes the `x-onbehalf-extension-id` header restriction
+- Verifies the fix was applied successfully
+- Prompts you to reload VS Code for changes to take effect
+
+**Note**: This modification may be overwritten when the Copilot Chat extension updates. Simply run the command again after updates if needed.
 
 ### Usage
 
@@ -75,10 +118,12 @@ This automatically creates or updates `~/.codex/config.toml` with Agent Maestro 
 
    - `Agent Maestro: Get Extensions Status` - Check the status of supported AI extensions
 
-   **New Configuration Commands:**
+   **Configuration Commands:**
 
    - `Agent Maestro: Configure Claude Code Settings` - One-click Claude Code setup
    - `Agent Maestro: Configure Codex Settings` - One-click Codex setup
+   - `Agent Maestro: Configure Gemini CLI Settings` - One-click Gemini CLI setup
+   - `Agent Maestro: Fix GitHub Copilot Chat - Model is not supported error` - Remove header restriction to enable additional models
 
 3. **Development Resources**:
    - **API Documentation**: Complete reference in [`docs/roo-code/`](docs/roo-code/README.md)
@@ -140,6 +185,7 @@ This allows different projects to use different configurations without affecting
 - **REST API**: `http://localhost:23333/api/v1`
 - **Anthropic API**: `http://localhost:23333/api/anthropic`
 - **OpenAI API**: `http://localhost:23333/api/openai`
+- **Gemini API**: `http://localhost:23333/api/gemini`
 - **MCP Server**: `http://localhost:23334`
 
 ### Anthropic-Compatible Endpoints
@@ -154,6 +200,14 @@ Perfect for GitHub Copilot and Claude Code integration:
 Perfect for Codex and OpenAI model integration:
 
 - **`POST /api/openai/chat/completions`** - OpenAI Chat Completions API compatibility using VS Code's Language Model API
+
+### Gemini-Compatible Endpoints
+
+Perfect for Gemini CLI integration:
+
+- **`POST /api/gemini/v1beta/models/{model}:generateContent`** - Google Gemini API compatibility using VS Code's Language Model API
+- **`POST /api/gemini/v1beta/models/{model}:streamGenerateContent`** - Streaming support for Gemini API
+- **`POST /api/gemini/v1beta/models/{model}:countTokens`** - Token counting for Gemini-compatible messages
 
 ### RooCode Agent Routes
 

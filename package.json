@@ -2,7 +2,7 @@
   "name": "agent-maestro",
   "displayName": "Agent Maestro",
   "description": "Turn VS Code into your compliant AI playground! With Agent Maestro, spin up Cline or Roo on demand and plug Claude Code or Codex straight in through an OpenAI/Anthropic-compatible API.",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "icon": "assets/icons/icon.png",
   "publisher": "Joouis",
   "repository": "https://github.com/Joouis/agent-maestro",
@@ -27,24 +27,27 @@
     "roo-code",
     "kilocode",
     "vibe coding",
-    "claude",
-    "dev",
+    "developer",
     "mcp",
-    "openrouter",
     "coding",
     "agent",
     "autonomous",
-    "chatgpt",
-    "sonnet",
     "ai",
     "github copilot",
     "github copilot chat",
-    "claude code",
     "anthropic",
+    "claude code",
+    "claude",
+    "openai",
+    "codex",
+    "gpt",
+    "gemini",
+    "gemini cli",
     "proxy",
     "api"
   ],
-  "main": "./dist/extension.js",
+  "type": "module",
+  "main": "./dist/extension.cjs",
   "contributes": {
     "configuration": {
       "type": "object",
@@ -139,6 +142,16 @@
         "command": "agent-maestro.configureCodex",
         "title": "Configure Codex Settings",
         "category": "Agent Maestro"
+      },
+      {
+        "command": "agent-maestro.configureGeminiCli",
+        "title": "Configure Gemini CLI Settings",
+        "category": "Agent Maestro"
+      },
+      {
+        "command": "agent-maestro.fixCopilotChatModelNotSupported",
+        "title": "Fix GitHub Copilot Chat - Model is not supported error",
+        "category": "Agent Maestro"
       }
     ]
   },
@@ -148,6 +161,7 @@
   ],
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
+    "@google/genai": "^1.29.1",
     "@hono/node-server": "^1.17.1",
     "@hono/zod-openapi": "^1.0.2",
     "axios": "^1.9.0",
@@ -169,7 +183,7 @@
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.2.1",
+    "@vscode/vsce": "^3.7.0",
     "esbuild": "^0.25.3",
     "eslint": "^9.25.1",
     "husky": "^9.1.7",
