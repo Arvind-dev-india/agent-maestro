@@ -40,6 +40,7 @@ interface ChatInputProps {
   hasMessages: boolean;
   modes?: Mode[];
   isLoadingModes?: boolean;
+  apiBaseUrl?: string | null;
   profiles?: Profile[];
   isLoadingProfiles?: boolean;
 }
@@ -57,6 +58,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   hasMessages,
   modes,
   isLoadingModes,
+  apiBaseUrl,
   profiles = [],
   isLoadingProfiles = false,
 }) => {
@@ -110,6 +112,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             selectedExtension={selectedExtension}
             onExtensionChange={onExtensionChange}
             disabled={disabled || hasMessages}
+            apiBaseUrl={apiBaseUrl}
           />
         </div>
 
@@ -150,6 +153,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               selectedExtension={selectedExtension}
               onExtensionChange={onExtensionChange}
               disabled={disabled || hasMessages}
+              apiBaseUrl={apiBaseUrl}
             />
           </div>
         </div>

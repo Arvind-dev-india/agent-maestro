@@ -38,7 +38,7 @@ export default function RooPage() {
     setInputValue,
     setSelectedMode,
     setSelectedExtension,
-  } = useChat();
+  } = useChat({ apiBaseUrl: apiConfig.baseUrl });
 
   const { modes, isLoading: isLoadingModes } = useModes({
     apiBaseUrl: apiConfig.baseUrl,
@@ -84,7 +84,15 @@ export default function RooPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-indigo-500 to-purple-600">
-      <ChatHeader onNewChat={handleNewChat} hasMessages={messages.length > 0} />
+      <ChatHeader
+        onNewChat={handleNewChat}
+        hasMessages={messages.length > 0}
+        isConnected={apiConfig.isConnected}
+        connectionUrl={apiConfig.baseUrl}
+        onDisconnect={apiConfig.disconnect}
+        workspace={apiConfig.workspace}
+        agentMaestroVersion={apiConfig.agentMaestroVersion}
+      />
 
       <MessageList
         messages={messages}
@@ -104,6 +112,7 @@ export default function RooPage() {
         hasMessages={messages.length > 0}
         modes={modes}
         isLoadingModes={isLoadingModes}
+        apiBaseUrl={apiConfig.baseUrl}
         profiles={profiles}
         isLoadingProfiles={isLoadingProfiles}
       />
