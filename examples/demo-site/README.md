@@ -1,4 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Roomote Control - Demo Site
+
+A mobile-responsive web interface for remotely controlling RooCode tasks via Agent Maestro. Deploy to Vercel and access your AI coding agent from anywhere, including mobile devices.
+
+## Features
+
+- **Remote Access**: Connect to your local Agent Maestro instance via reverse proxy (ngrok, Cloudflare Tunnel)
+- **Mobile-First UI**: Optimized for smartphones with touch-friendly controls
+- **PWA Support**: Install as a standalone app on mobile devices
+- **Connection Management**: Save and reconnect to your Agent Maestro endpoints
+- **Real-time Streaming**: SSE-based live task updates
+- **Safe Area Support**: Proper handling of iPhone notch and home indicator
+
+## Quick Start
+
+### 1. Deploy to Vercel
+
+```bash
+# From the demo-site directory
+pnpm install
+vercel deploy
+```
+
+Or connect your GitHub repo to Vercel for automatic deployments.
+
+### 2. Set Up Reverse Proxy
+
+Expose your local Agent Maestro API to the internet:
+
+**Using ngrok:**
+
+```bash
+ngrok http 23333
+# Note the https://xxx.ngrok.io URL
+```
+
+**Using Cloudflare Tunnel:**
+
+```bash
+cloudflared tunnel --url localhost:23333
+```
+
+### 3. Connect from Mobile
+
+1. Open your Vercel deployment URL on your mobile device
+2. Enter your reverse proxy URL (e.g., `https://xxx.ngrok.io`)
+3. Click "Connect"
+4. Start controlling your RooCode tasks remotely!
+
+## Security Considerations
+
+⚠️ **IMPORTANT**: When deploying to production, consider these security best practices:
+
+### Reverse Proxy Security
+
+- **Never expose production reverse proxy URLs publicly** without proper authentication
+- Use ngrok's built-in authentication: `ngrok http 23333 --basic-auth="user:password"`
+- For Cloudflare Tunnel, enable [Access policies](https://developers.cloudflare.com/cloudflare-one/policies/access/) to restrict who can connect
+- Consider using IP allowlists if you know your deployment's IP addresses
+
+### CORS Configuration
+
+The default Vercel configuration doesn't include CORS headers, which means your API will only accept requests from the same origin. If you need to add CORS headers to `vercel.json`, be specific:
+
+```json
+{
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://your-specific-domain.vercel.app"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Never use `"value": "*"`** in production as it allows any website to make requests to your backend.
+
+### Best Practices
+
+- Rotate reverse proxy URLs regularly
+- Don't commit `.env` files with sensitive URLs
+- Use environment variables for production endpoints
+- Monitor your reverse proxy access logs for suspicious activity
+
+## Architecture
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Mobile    │────▶│   Vercel     │────▶│  Reverse Proxy  │
+│   Browser   │     │   (This App) │     │  (ngrok/CF)     │
+└─────────────┘     └──────────────┘     └────────┬────────┘
+                                                   │
+                                                   ▼
+                                         ┌─────────────────┐
+                                         │  Local VS Code  │
+                                         │  Agent Maestro  │
+                                         │  API :23333     │
+                                         └─────────────────┘
+```
 
 ## Important Notes for /roo/task API Integration
 
@@ -27,7 +130,7 @@ if (currentEvent === "task_completed") {
 }
 ```
 
-## Getting Started
+## Getting Started (Local Development)
 
 First, run the development server:
 

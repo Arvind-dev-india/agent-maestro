@@ -1,22 +1,51 @@
 import React, { useState } from "react";
+
 import { MODES } from "../utils/constants";
+
+interface Mode {
+  slug: string;
+  name: string;
+  roleDefinition?: string;
+  customInstructions?: string;
+  groups?: readonly unknown[];
+  source?: "builtin" | "custom";
+  whenToUse?: string;
+}
 
 interface ModeSelectorProps {
   selectedMode: string;
   onModeChange: (mode: string) => void;
   disabled: boolean;
+  modes?: Mode[];
+  isLoadingModes?: boolean;
 }
 
 export const ModeSelector: React.FC<ModeSelectorProps> = ({
   selectedMode,
   onModeChange,
   disabled,
+  modes,
+  isLoadingModes = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedModeData = MODES.find((mode) => mode.slug === selectedMode);
+  // Use provided modes or fallback to hardcoded MODES
+  const availableModes: Mode[] =
+    modes && modes.length > 0
+      ? modes
+      : MODES.map((m) => ({
+          slug: m.slug,
+          name: m.name,
+          whenToUse: m.whenToUse,
+          groups: m.groups,
+          source: "builtin" as const,
+        }));
 
-  const formatGroups = (groups: readonly any[]): string => {
+  const selectedModeData = availableModes.find(
+    (mode) => mode.slug === selectedMode,
+  );
+
+  const formatGroups = (groups: readonly unknown[]): string => {
     return groups
       .map((group) => {
         if (typeof group === "string") {
@@ -33,17 +62,26 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   };
 
   return (
-    <div className="relative flex-1 sm:flex-initial">
+    <div className="relative">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        disabled={disabled}
-        className="w-full sm:w-auto flex items-center justify-between gap-2 px-3 py-2.5 sm:py-2 text-sm text-black bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[140px]"
-        title={selectedModeData?.whenToUse}
+        disabled={disabled || isLoadingModes}
+        className="flex items-center gap-2 px-3 py-2 text-sm text-black bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        title={selectedModeData?.whenToUse || selectedModeData?.roleDefinition}
       >
-        <span className="truncate">{selectedModeData?.name || selectedMode}</span>
+        <span>
+          {isLoadingModes
+            ? "Loading..."
+            : selectedModeData?.name || selectedMode}
+        </span>
+        {selectedModeData?.source === "custom" && (
+          <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+            Custom
+          </span>
+        )}
         <svg
-          className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -57,7 +95,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
         </svg>
       </button>
 
-      {isOpen && !disabled && (
+      {isOpen && !disabled && !isLoadingModes && (
         <>
           {/* Backdrop to close dropdown */}
           <div
@@ -65,29 +103,38 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown menu - Responsive positioning */}
-          <div className="absolute bottom-full left-0 mb-2 w-[90vw] sm:w-80 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-80 sm:max-h-96 overflow-y-auto">
-            {MODES.map((mode) => (
+          {/* Dropdown menu */}
+          <div className="absolute bottom-full left-0 mb-2 w-80 sm:w-96 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
+            {availableModes.map((mode, index) => (
               <button
-                key={mode.slug}
+                key={`${mode.slug}-${mode.source || "builtin"}-${index}`}
                 type="button"
                 onClick={() => {
                   onModeChange(mode.slug);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left p-3 sm:p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
                   mode.slug === selectedMode
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700"
                 }`}
               >
-                <div className="font-medium mb-1 text-base sm:text-sm">{mode.name}</div>
-                <div className="text-sm sm:text-xs text-gray-600 mb-2 leading-relaxed">
-                  {mode.whenToUse}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium">{mode.name}</span>
+                  {mode.source === "custom" && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                      Custom
+                    </span>
+                  )}
                 </div>
-                {mode.groups.length > 0 && (
-                  <div className="text-sm sm:text-xs text-gray-500">
-                    <span className="font-medium">Permissions required:</span>{" "}
+                <div className="text-xs text-gray-600 mb-2 leading-relaxed">
+                  {mode.whenToUse ||
+                    mode.roleDefinition ||
+                    "No description available"}
+                </div>
+                {mode.groups && mode.groups.length > 0 && (
+                  <div className="text-xs text-gray-500">
+                    <span className="font-medium">Permissions:</span>{" "}
                     {formatGroups(mode.groups)}
                   </div>
                 )}

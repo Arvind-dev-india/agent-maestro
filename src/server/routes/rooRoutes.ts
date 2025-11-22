@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { ClineMessage, RooCodeEventName } from "@roo-code/types";
-import { isEqual } from "es-toolkit";
+import { isEqual, merge } from "es-toolkit";
 import { streamSSE } from "hono/streaming";
 import * as vscode from "vscode";
 
@@ -10,6 +10,7 @@ import {
   addAgentMaestroMcpConfig,
   getAvailableExtensions,
 } from "../../utils/mcpConfig";
+import { filterRooSettings } from "../../utils/rooSettingsFilter";
 import {
   ImagesDataUriSchema,
   imagesDataUriErrorMessage,
@@ -673,6 +674,159 @@ const setActiveProfileRoute = createRoute({
   },
 });
 
+// GET /roo/modes - Get available modes including custom modes
+const getModesRoute = createRoute({
+  method: "get",
+  path: "/roo/modes",
+  tags: ["Configuration"],
+  summary: "Get available modes",
+  description:
+    "Retrieves all available modes including custom modes from RooCode configuration",
+  request: {
+    query: z.object({
+      extensionId: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            modes: z.array(
+              z.object({
+                slug: z.string(),
+                name: z.string(),
+                roleDefinition: z.string().optional(),
+                customInstructions: z.string().optional(),
+                groups: z.array(z.any()).optional(),
+                source: z.enum(["builtin", "custom"]),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Modes retrieved successfully",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Internal server error",
+    },
+  },
+});
+
+// GET /roo/settings - Get RooCode settings
+const getSettingsRoute = createRoute({
+  method: "get",
+  path: "/roo/settings",
+  tags: ["Configuration"],
+  summary: "Get RooCode settings",
+  description:
+    "Retrieves the complete RooCode configuration including global settings and provider settings",
+  request: {
+    query: z.object({
+      extensionId: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          // NOTE: Using z.object() as placeholder. This represents rooCodeSettingsSchema from @roo-code/types
+          // When @roo-code/types migrates from Zod v3 to v4, replace this with the actual schema import
+          // rooCodeSettingsSchema = globalSettingsSchema & providerSettingsSchema (100+ fields)
+          schema: z.object({}).openapi({
+            description:
+              "Complete RooCode settings (RooCodeSettings type from @roo-code/types). Includes global settings (autoApprovalEnabled, customInstructions, etc.) and provider settings (apiKey, modelId, etc.)",
+          }),
+        },
+      },
+      description: "Complete RooCode settings retrieved successfully",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+      description: "Extension not found",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Internal server error",
+    },
+  },
+});
+
+// PUT /roo/settings - Update RooCode settings
+const updateSettingsRoute = createRoute({
+  method: "put",
+  path: "/roo/settings",
+  tags: ["Configuration"],
+  summary: "Update RooCode settings",
+  description:
+    "Updates specific RooCode settings. Only provided fields will be updated.",
+  request: {
+    query: z.object({
+      extensionId: z.string().optional(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          // NOTE: Using z.object() as placeholder. This represents Partial<RooCodeSettings>
+          // When @roo-code/types migrates from Zod v3 to v4, replace with: rooCodeSettingsSchema.partial()
+          schema: z.object({}).openapi({
+            description:
+              "Partial RooCode settings to update. Any field from RooCodeSettings can be provided. Only specified fields will be updated.",
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          // NOTE: Using z.object() as placeholder. This represents rooCodeSettingsSchema
+          // When @roo-code/types migrates from Zod v3 to v4, replace with the actual schema
+          schema: z.object({}).openapi({
+            description:
+              "Complete updated RooCode settings (RooCodeSettings type)",
+          }),
+        },
+      },
+      description: "Settings updated successfully with full updated settings",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+      description: "Extension not found",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Internal server error",
+    },
+  },
+});
+
 export function registerRooRoutes(
   app: OpenAPIHono,
   controller: ExtensionController,
@@ -1295,6 +1449,149 @@ export function registerRooRoutes(
         `Error setting active profile ${c.req.param("name")}:`,
         error,
       );
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      return c.json({ message }, 500);
+    }
+  });
+
+  // GET /api/v1/roo/modes - Get available modes including custom modes
+  app.openapi(getModesRoute, async (c) => {
+    try {
+      const { extensionId } = c.req.query();
+
+      const adapter = controller.getRooAdapter(extensionId);
+      if (!adapter?.isActive) {
+        return c.json(
+          { message: `RooCode extension ${extensionId} is not available` },
+          500,
+        );
+      }
+
+      const config = adapter.getConfiguration();
+
+      // Default built-in modes
+      const builtinModes = [
+        { slug: "code", name: "Code", source: "builtin" as const },
+        { slug: "architect", name: "Architect", source: "builtin" as const },
+        { slug: "ask", name: "Ask", source: "builtin" as const },
+        { slug: "debug", name: "Debug", source: "builtin" as const },
+        {
+          slug: "orchestrator",
+          name: "Orchestrator",
+          source: "builtin" as const,
+        },
+      ];
+
+      // Get custom modes from configuration if available
+      const customModes: Array<{
+        slug: string;
+        name: string;
+        roleDefinition?: string;
+        customInstructions?: string;
+        groups?: any[];
+        source: "custom";
+      }> = [];
+
+      // Check if config has customModes property (from RooCodeSettings)
+      if (config && typeof config === "object" && "customModes" in config) {
+        const configCustomModes = (config as any).customModes;
+        if (Array.isArray(configCustomModes)) {
+          for (const mode of configCustomModes) {
+            customModes.push({
+              slug: mode.slug || mode.name?.toLowerCase().replace(/\s+/g, "-"),
+              name: mode.name || mode.slug,
+              roleDefinition: mode.roleDefinition,
+              customInstructions: mode.customInstructions,
+              groups: mode.groups,
+              source: "custom" as const,
+            });
+          }
+        }
+      }
+
+      // Combine built-in and custom modes
+      const allModes = [...builtinModes, ...customModes];
+
+      logger.info(
+        `Retrieved ${allModes.length} modes (${builtinModes.length} builtin, ${customModes.length} custom)`,
+      );
+
+      return c.json({ modes: allModes }, 200);
+    } catch (error) {
+      logger.error("Error retrieving modes:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      return c.json({ message }, 500);
+    }
+  });
+
+  // GET /api/v1/roo/settings - Get RooCode settings
+  app.openapi(getSettingsRoute, async (c) => {
+    try {
+      const { extensionId } = c.req.valid("query");
+
+      const adapter = controller.getRooAdapter(extensionId);
+      if (!adapter?.isActive) {
+        return c.json(
+          {
+            message: `RooCode extension ${extensionId || "default"} is not available`,
+          },
+          404,
+        );
+      }
+
+      // Get full configuration - returns complete RooCodeSettings
+      const settings = adapter.getConfiguration();
+
+      // Filter sensitive data before returning
+      const filteredSettings = filterRooSettings(settings);
+
+      return c.json(filteredSettings, 200);
+    } catch (error) {
+      logger.error("Error retrieving RooCode settings:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      return c.json({ message }, 500);
+    }
+  });
+
+  // PUT /api/v1/roo/settings - Update RooCode settings
+  app.openapi(updateSettingsRoute, async (c) => {
+    try {
+      const { extensionId } = c.req.valid("query");
+      const partialSettings = await c.req.json();
+
+      const adapter = controller.getRooAdapter(extensionId);
+      if (!adapter?.isActive) {
+        return c.json(
+          {
+            message: `RooCode extension ${extensionId || "default"} is not available`,
+          },
+          404,
+        );
+      }
+
+      // Get current settings first
+      const currentSettings = adapter.getConfiguration();
+
+      // Merge with updates (shallow merge is fine, setConfiguration handles deep merge)
+      const updatedSettings = merge(currentSettings, partialSettings);
+
+      // Update configuration
+      await adapter.setConfiguration(updatedSettings);
+
+      // Get updated configuration to return
+      const finalSettings = adapter.getConfiguration();
+
+      // Filter sensitive data before returning
+      const filteredFinalSettings = filterRooSettings(finalSettings);
+
+      logger.info(`Updated RooCode settings for ${extensionId || "default"}`);
+
+      return c.json(filteredFinalSettings, 200);
+    } catch (error) {
+      logger.error("Error updating RooCode settings:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return c.json({ message }, 500);

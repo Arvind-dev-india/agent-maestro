@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { API_ENDPOINTS } from "../utils/constants";
+import React, { useEffect, useState } from "react";
+
+import { DEFAULT_API_BASE_URL, createApiEndpoints } from "../utils/constants";
 
 interface Extension {
   isInstalled: boolean;
@@ -14,15 +15,17 @@ interface ExtensionInfo {
 }
 
 interface ExtensionSelectorProps {
-  selectedExtension: string;
+  selectedExtension?: string;
   onExtensionChange: (extensionId: string) => void;
   disabled: boolean;
+  apiBaseUrl?: string | null;
 }
 
 export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
   selectedExtension,
   onExtensionChange,
   disabled,
+  apiBaseUrl = null,
 }) => {
   const [extensions, setExtensions] = useState<
     Array<{ id: string; name: string; version: string }>
@@ -35,7 +38,10 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
     const fetchExtensions = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(API_ENDPOINTS.INFO);
+        const endpoints = createApiEndpoints(
+          apiBaseUrl || DEFAULT_API_BASE_URL,
+        );
+        const response = await fetch(endpoints.INFO);
         if (!response.ok) {
           throw new Error(`Failed to fetch extensions: ${response.statusText}`);
         }
@@ -81,7 +87,7 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
     };
 
     fetchExtensions();
-  }, [selectedExtension, onExtensionChange]);
+  }, [selectedExtension, onExtensionChange, apiBaseUrl]);
 
   const selectedExtensionData = extensions.find(
     (ext) => ext.id === selectedExtension,
@@ -112,7 +118,9 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
         className="w-full sm:w-auto flex items-center justify-between gap-2 px-3 py-2.5 sm:py-2 text-sm text-black bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[120px]"
         title={`Extension: ${selectedExtensionData?.name || selectedExtension} (v${selectedExtensionData?.version || "unknown"})`}
       >
-        <span className="truncate">{selectedExtensionData?.name || selectedExtension}</span>
+        <span className="truncate">
+          {selectedExtensionData?.name || selectedExtension}
+        </span>
         <svg
           className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -152,7 +160,9 @@ export const ExtensionSelector: React.FC<ExtensionSelectorProps> = ({
                     : "text-gray-700"
                 }`}
               >
-                <div className="font-medium mb-1 text-base sm:text-sm">{ext.name}</div>
+                <div className="font-medium mb-1 text-base sm:text-sm">
+                  {ext.name}
+                </div>
                 <div className="text-sm sm:text-xs text-gray-500">
                   {ext.id} (v{ext.version})
                 </div>

@@ -1,56 +1,31 @@
-// Get configuration from environment or query parameters
-const getConfig = () => {
+// Check if isDev query parameter exists to determine port
+const getPort = () => {
   if (typeof window !== "undefined") {
     const urlParams = new URLSearchParams(window.location.search);
-
-    // Check for development mode
-    if (urlParams.has("isDev")) {
-      return {
-        apiBaseUrl: "http://localhost:33333/api/v1",
-        fullApiUrl: "http://localhost:33333/api/v1/roo",
-      };
-    }
-
-    // Determine if we're accessing via Tailscale (100.x.x.x) or localhost
-    const hostname = window.location.hostname;
-
-    if (hostname.startsWith("100.")) {
-      // Accessing via Tailscale - need to proxy through the container
-      return {
-        apiBaseUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy`,
-        fullApiUrl: `${window.location.protocol}//${hostname}:${window.location.port}/api/proxy/roo`,
-      };
-    } else {
-      // Accessing via localhost - direct connection to VS Code
-      return {
-        apiBaseUrl: "http://localhost:23333/api/v1",
-        fullApiUrl: "http://localhost:23333/api/v1/roo",
-      };
-    }
+    return urlParams.has("isDev") ? 33333 : 23333;
   }
-
-  // Server-side: use environment variables or defaults
-  const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://host.docker.internal:23333/api/v1";
-
-  return {
-    apiBaseUrl: apiBaseUrl.replace("/roo", ""),
-    fullApiUrl: apiBaseUrl.includes("/roo") ? apiBaseUrl : `${apiBaseUrl}/roo`,
-  };
+  return 23333;
 };
 
-const config = getConfig();
-export const API_BASE_URL = config.fullApiUrl || `${config.apiBaseUrl}/roo`;
-const INFO_API_BASE_URL =
-  config.apiBaseUrl || config.fullApiUrl?.replace("/roo", "");
+const PORT = getPort();
+export const DEFAULT_API_BASE_URL = `http://localhost:${PORT}`;
 
-export const API_ENDPOINTS = {
-  TASK: `${API_BASE_URL}/task`,
-  TASK_MESSAGE: (taskId: string) => `${API_BASE_URL}/task/${taskId}/message`,
-  TASK_ACTION: (taskId: string) => `${API_BASE_URL}/task/${taskId}/action`,
-  INFO: `${INFO_API_BASE_URL}/info`,
-} as const;
+// Dynamic API endpoint factory - uses stored URL or falls back to default
+export const createApiEndpoints = (baseUrl: string = DEFAULT_API_BASE_URL) => {
+  const cleanUrl = baseUrl.replace(/\/+$/, "");
+  const rooApiBase = `${cleanUrl}/api/v1/roo`;
+  const commonApiBase = `${cleanUrl}/api/v1`;
+
+  return {
+    TASK: `${rooApiBase}/task`,
+    TASKS: `${rooApiBase}/tasks`,
+    TASK_DETAIL: (taskId: string) => `${rooApiBase}/task/${taskId}`,
+    TASK_MESSAGE: (taskId: string) => `${rooApiBase}/task/${taskId}/message`,
+    TASK_ACTION: (taskId: string) => `${rooApiBase}/task/${taskId}/action`,
+    INFO: `${commonApiBase}/info`,
+    FS_READ: `${commonApiBase}/fs/read`,
+  };
+};
 
 export const SUGGESTION_ACTIONS = {
   APPROVE: "Approve",
@@ -75,18 +50,6 @@ export const STATUS_MESSAGES = {
   REJECTED: "Request rejected!",
   ERROR_PROCESSING: "Error processing request",
   FINALIZING: "Response completed! Finalizing...",
-  // Enhanced SSE status messages
-  CONNECTION_LOST: "Connection lost - automatic recovery in progress",
-  RECONNECTING: "Reconnecting to server...",
-  RECONNECTED: "Connection restored - resuming from last message",
-  RETRY_ATTEMPT: "Retry attempt {attempt} of {max}...",
-  RECOVERING: "Recovering interrupted session...",
-  HEALTH_CHECK_FAILED: "Connection health check failed - initiating recovery",
-  HEALTH_RESTORED: "Connection health restored - continuing normally",
-  PARTIAL_SAVE: "Saving partial response - will resume when reconnected",
-  RESUME_SUCCESS: "Successfully resumed from interruption",
-  STATE_PRESERVED: "Message state preserved - continuing from last point",
-  RATE_LIMITED: "Rate limited - automatic retry in {seconds} seconds",
 } as const;
 
 export const MESSAGE_TYPES = {
@@ -96,44 +59,7 @@ export const MESSAGE_TYPES = {
 
 export const ASK_TYPES = {
   FOLLOWUP: "followup",
-  COMMAND: "command",
-  COMMAND_OUTPUT: "command_output",
-  COMPLETION_RESULT: "completion_result",
-  TOOL: "tool",
-  API_REQ_FAILED: "api_req_failed",
-  RESUME_TASK: "resume_task",
-  RESUME_COMPLETED_TASK: "resume_completed_task",
-  MISTAKE_LIMIT_REACHED: "mistake_limit_reached",
-  BROWSER_ACTION_LAUNCH: "browser_action_launch",
   USE_MCP_SERVER: "use_mcp_server",
-  AUTO_APPROVAL_MAX_REQ_REACHED: "auto_approval_max_req_reached",
-} as const;
-
-export const SAY_TYPES = {
-  ERROR: "error",
-  API_REQ_STARTED: "api_req_started",
-  API_REQ_FINISHED: "api_req_finished",
-  API_REQ_RETRIED: "api_req_retried",
-  API_REQ_RETRY_DELAYED: "api_req_retry_delayed",
-  API_REQ_DELETED: "api_req_deleted",
-  TEXT: "text",
-  REASONING: "reasoning",
-  COMPLETION_RESULT: "completion_result",
-  USER_FEEDBACK: "user_feedback",
-  USER_FEEDBACK_DIFF: "user_feedback_diff",
-  COMMAND_OUTPUT: "command_output",
-  SHELL_INTEGRATION_WARNING: "shell_integration_warning",
-  BROWSER_ACTION: "browser_action",
-  BROWSER_ACTION_RESULT: "browser_action_result",
-  MCP_SERVER_REQUEST_STARTED: "mcp_server_request_started",
-  MCP_SERVER_RESPONSE: "mcp_server_response",
-  SUBTASK_RESULT: "subtask_result",
-  CHECKPOINT_SAVED: "checkpoint_saved",
-  ROOIGNORE_ERROR: "rooignore_error",
-  DIFF_ERROR: "diff_error",
-  CONDENSE_CONTEXT: "condense_context",
-  CONDENSE_CONTEXT_ERROR: "condense_context_error",
-  CODEBASE_SEARCH_RESULT: "codebase_search_result",
 } as const;
 
 export enum RooCodeEventName {
@@ -147,8 +73,8 @@ export enum RooCodeEventName {
   TaskAborted = "taskAborted",
   TaskSpawned = "taskSpawned",
   TaskCompleted = "taskCompleted",
-  TaskToolFailed = "taskToolFailed",
   TaskTokenUsageUpdated = "taskTokenUsageUpdated",
+  TaskToolFailed = "taskToolFailed",
   EvalPass = "evalPass",
   EvalFail = "evalFail",
 }
@@ -156,7 +82,7 @@ export enum RooCodeEventName {
 export const UI_CONFIG = {
   STATUS_DISPLAY_DURATION: 3000,
   TASK_COMPLETION_DELAY: 3000,
-  TEXTAREA_MAX_HEIGHT: 200, // Increased for better mobile experience
+  TEXTAREA_MAX_HEIGHT: 120,
   MESSAGE_UPDATE_DELAY: 1,
 } as const;
 
