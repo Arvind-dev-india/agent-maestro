@@ -79,6 +79,15 @@ const webSearchToolResultBlockParamToVSCodePart = (
   return new vscode.LanguageModelToolResultPart(param.tool_use_id, content);
 };
 
+const searchResultBlockParamToVSCodePart = (
+  param: Anthropic.Messages.SearchResultBlockParam,
+) => {
+  // Format the search result as readable text with title, source, and content
+  const contentText = param.content.map((c) => c.text).join("\n");
+  const formattedText = `[Search Result: ${param.title}]\nSource: ${param.source}\n\n${contentText}`;
+  return new vscode.LanguageModelTextPart(formattedText);
+};
+
 /**
  * Convert Anthropic MessageParam content to VSCode LanguageModel content parts
  */
@@ -114,6 +123,9 @@ const convertContentToVSCodeParts = (
         break;
       case "document":
         // Skip document blocks as specified in original implementation
+        break;
+      case "search_result":
+        parts.push(searchResultBlockParamToVSCodePart(block));
         break;
       case "thinking":
         parts.push(thinkingBlockParamToVSCodePart(block));
